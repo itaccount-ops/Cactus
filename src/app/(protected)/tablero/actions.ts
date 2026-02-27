@@ -11,9 +11,9 @@ export async function getTableroData() {
     const session = await auth();
     if (!session?.user?.id) return { tasks: [], users: [] };
 
-    const userId   = session.user.id;
-    const userRole = (session.user as any).role  as string;
-    const companyId= (session.user as any).companyId as string | null;
+    const userId = session.user.id;
+    const userRole = (session.user as any).role as string;
+    const companyId = (session.user as any).companyId as string | null;
 
     // Build task visibility scope (mirrors tasks/actions.ts logic)
     const taskWhere: any = {};
@@ -29,13 +29,13 @@ export async function getTableroData() {
         prisma.task.findMany({
             where: taskWhere,
             include: {
-                assignedTo:  { select: { id: true, name: true, email: true, image: true } },
-                assignees:   { select: { id: true, name: true, email: true, image: true } },
-                createdBy:   { select: { id: true, name: true, image: true } },
-                project:     { select: { id: true, code: true, name: true } },
-                labels:      { orderBy: { createdAt: 'asc' } },
+                assignedTo: { select: { id: true, name: true, email: true, image: true } },
+                assignees: { select: { id: true, name: true, email: true, image: true } },
+                createdBy: { select: { id: true, name: true, image: true } },
+                project: { select: { id: true, code: true, name: true } },
+                labels: { orderBy: { createdAt: 'asc' } },
                 checklistItems: { select: { id: true, completed: true } },
-                _count:      { select: { comments: true, attachments: true } },
+                _count: { select: { comments: true, attachments: true } },
             },
             orderBy: [
                 { status: 'asc' },
@@ -45,15 +45,15 @@ export async function getTableroData() {
         } as any),
         companyId
             ? prisma.user.findMany({
-                  where: { companyId, isActive: true },
-                  select: { id: true, name: true, email: true, image: true, role: true },
-                  orderBy: { name: 'asc' },
-              })
+                where: { companyId, isActive: true },
+                select: { id: true, name: true, email: true, image: true, role: true },
+                orderBy: { name: 'asc' },
+            })
             : prisma.user.findMany({
-                  where: { isActive: true },
-                  select: { id: true, name: true, email: true, image: true, role: true },
-                  orderBy: { name: 'asc' },
-              }),
+                where: { isActive: true },
+                select: { id: true, name: true, email: true, image: true, role: true },
+                orderBy: { name: 'asc' },
+            }),
     ]);
 
     return { tasks, users };
@@ -77,7 +77,7 @@ export async function updateTaskField(taskId: string, field: string, value: any)
 
         // Authorization check
         const userRole = (session.user as any).role as string;
-        const canEdit  =
+        const canEdit =
             ['ADMIN', 'SUPERADMIN'].includes(userRole) ||
             task.createdById === session.user.id ||
             task.assignedToId === session.user.id ||
@@ -102,8 +102,8 @@ export async function updateTaskField(taskId: string, field: string, value: any)
                 // Notify creator when status changes (if not self)
                 if (task.createdById !== session.user.id) {
                     const cfg: Record<string, string> = {
-                        COMPLETED:   `${session.user.name} completó la tarea: "${task.title}"`,
-                        CANCELLED:   `${session.user.name} canceló la tarea: "${task.title}"`,
+                        COMPLETED: `${session.user.name} completó la tarea: "${task.title}"`,
+                        CANCELLED: `${session.user.name} canceló la tarea: "${task.title}"`,
                         IN_PROGRESS: `${session.user.name} puso en curso: "${task.title}"`,
                     };
                     if (cfg[value]) {
@@ -201,22 +201,22 @@ export async function createTableroTask(data: {
         const task = await prisma.task.create({
             data: {
                 title,
-                priority:    (data.priority as any) ?? 'MEDIUM',
-                status:      (data.status as any)   ?? 'PENDING',
-                type:        'GENERAL',
+                priority: (data.priority as any) ?? 'MEDIUM',
+                status: (data.status as any) ?? 'PENDING',
+                type: 'GENERAL',
                 createdById: session.user.id,
                 assignedToId: session.user.id,
-                projectId:   data.projectId ?? null,
-                assignees:   { connect: [{ id: session.user.id }] },
+                projectId: data.projectId ?? null,
+                assignees: { connect: [{ id: session.user.id }] },
             } as any,
             include: {
-                assignedTo:     { select: { id: true, name: true, email: true, image: true } },
-                assignees:      { select: { id: true, name: true, email: true, image: true } },
-                createdBy:      { select: { id: true, name: true, image: true } },
-                project:        { select: { id: true, code: true, name: true } },
-                labels:         { orderBy: { createdAt: 'asc' } },
+                assignedTo: { select: { id: true, name: true, email: true, image: true } },
+                assignees: { select: { id: true, name: true, email: true, image: true } },
+                createdBy: { select: { id: true, name: true, image: true } },
+                project: { select: { id: true, code: true, name: true } },
+                labels: { orderBy: { createdAt: 'asc' } },
                 checklistItems: { select: { id: true, completed: true } },
-                _count:         { select: { comments: true, attachments: true } },
+                _count: { select: { comments: true, attachments: true } },
             } as any,
         });
 
@@ -237,7 +237,7 @@ export async function deleteTableroTask(taskId: string) {
 
     try {
         const task = await prisma.task.findUnique({
-            where:  { id: taskId },
+            where: { id: taskId },
             select: { id: true, title: true, createdById: true },
         });
         if (!task) return { error: 'Tarea no encontrada' };
@@ -256,5 +256,156 @@ export async function deleteTableroTask(taskId: string) {
     } catch (error) {
         console.error('[tablero/deleteTableroTask]', error);
         return { error: 'Error al eliminar la tarea' };
+    }
+}
+
+/* ─── getProjectsForTablero ──────────────────────────────────── */
+export async function getProjectsForTablero() {
+    const session = await auth();
+    if (!session?.user?.id) return [];
+    const companyId = (session.user as any).companyId as string | null;
+    try {
+        const projects = await prisma.project.findMany({
+            where: { isActive: true, ...(companyId ? { companyId } : {}) },
+            include: {
+                client: { select: { id: true, name: true } },
+                tasks: { select: { id: true, status: true } },
+                _count: { select: { tasks: true } },
+            },
+            orderBy: [{ year: 'desc' }, { code: 'asc' }],
+        });
+        return projects.map(p => ({
+            id: p.id, code: p.code, name: p.name, year: p.year,
+            department: p.department, clientName: (p.client as any)?.name ?? null,
+            taskCount: p._count.tasks,
+            completedCount: p.tasks.filter((t: any) => t.status === 'COMPLETED').length,
+        }));
+    } catch (error) {
+        console.error('[tablero/getProjectsForTablero]', error);
+        return [];
+    }
+}
+
+/* ─── createTableroProject ───────────────────────────────────── */
+export async function createTableroProject(data: {
+    code: string; name: string; year?: number; department?: string;
+}) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+    const role = (session.user as any).role as string;
+    if (!['ADMIN', 'SUPERADMIN', 'MANAGER'].includes(role))
+        return { error: 'Solo administradores y managers pueden crear proyectos' };
+    const code = data.code?.trim().toUpperCase();
+    const name = data.name?.trim();
+    if (!code || !name) return { error: 'Código y nombre son requeridos' };
+    const companyId = (session.user as any).companyId as string | null;
+    try {
+        const project = await prisma.project.create({
+            data: {
+                code, name,
+                year: data.year ?? new Date().getFullYear(),
+                department: (data.department as any) ?? 'OTHER',
+                isActive: true,
+                ...(companyId ? { companyId } : {}),
+            },
+        });
+        revalidatePath('/tablero');
+        revalidatePath('/admin/projects');
+        return { success: true, project };
+    } catch (error: any) {
+        if (error?.code === 'P2002') return { error: 'Ya existe un proyecto con ese código' };
+        console.error('[tablero/createTableroProject]', error);
+        return { error: 'Error al crear el proyecto' };
+    }
+}
+
+/* ─── getTaskDetail ──────────────────────────────────────────── */
+export async function getTaskDetail(taskId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return null;
+    try {
+        return await (prisma.task as any).findUnique({
+            where: { id: taskId },
+            include: {
+                assignedTo: { select: { id: true, name: true, email: true, image: true } },
+                assignees: { select: { id: true, name: true, email: true, image: true } },
+                createdBy: { select: { id: true, name: true, image: true } },
+                project: { select: { id: true, code: true, name: true } },
+                labels: true,
+                checklistItems: { orderBy: { createdAt: 'asc' } },
+                comments: {
+                    include: { user: { select: { id: true, name: true, image: true } } },
+                    orderBy: { createdAt: 'asc' },
+                },
+            },
+        });
+    } catch (error) {
+        console.error('[tablero/getTaskDetail]', error);
+        return null;
+    }
+}
+
+/* ─── updateTaskDescription ──────────────────────────────────── */
+export async function updateTaskDescription(taskId: string, description: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+    try {
+        await prisma.task.update({ where: { id: taskId }, data: { description } });
+        revalidatePath('/tablero');
+        return { success: true };
+    } catch (error) {
+        console.error('[tablero/updateTaskDescription]', error);
+        return { error: 'Error al actualizar la descripción' };
+    }
+}
+
+/* ─── addTaskComment ──────────────────────────────────────────── */
+export async function addTaskComment(taskId: string, content: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+    const text = content?.trim();
+    if (!text) return { error: 'El comentario no puede estar vacío' };
+    try {
+        const comment = await (prisma.taskComment as any).create({
+            data: { content: text, taskId, userId: session.user.id },
+            include: { user: { select: { id: true, name: true, image: true } } },
+        });
+        revalidatePath('/tablero');
+        return { success: true, comment };
+    } catch (error) {
+        console.error('[tablero/addTaskComment]', error);
+        return { error: 'Error al añadir comentario' };
+    }
+}
+
+/* ─── toggleChecklistItem ────────────────────────────────────── */
+export async function toggleChecklistItem(itemId: string, completed: boolean) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+    try {
+        await (prisma.taskChecklistItem as any).update({ where: { id: itemId }, data: { completed } });
+        revalidatePath('/tablero');
+        return { success: true };
+    } catch (error) {
+        console.error('[tablero/toggleChecklistItem]', error);
+        return { error: 'Error al actualizar checklist' };
+    }
+}
+
+/* ─── addChecklistItem ───────────────────────────────────────── */
+export async function addChecklistItem(taskId: string, text: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+    const content = text?.trim();
+    if (!content) return { error: 'El texto no puede estar vacío' };
+    try {
+        const item = await (prisma.taskChecklistItem as any).create({
+            data: { text: content, taskId, completed: false },
+        });
+        revalidatePath('/tablero');
+        return { success: true, item };
+    } catch (error) {
+        console.error('[tablero/addChecklistItem]', error);
+        return { error: 'Error al añadir item al checklist' };
     }
 }

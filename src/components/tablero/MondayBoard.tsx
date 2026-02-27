@@ -27,15 +27,15 @@ import { useToast } from '@/components/ui/Toast';
 /* ═══════════════════════════════════════════════════════════════
    TYPES
 ═══════════════════════════════════════════════════════════════ */
-type ViewMode   = 'table' | 'kanban';
-type GroupBy    = 'project' | 'status' | 'priority';
-type SortField  = 'none' | 'title' | 'status' | 'priority' | 'dueDate';
-type SortDir    = 'asc' | 'desc';
+type ViewMode = 'table' | 'kanban';
+type GroupBy = 'project' | 'status' | 'priority';
+type SortField = 'none' | 'title' | 'status' | 'priority' | 'dueDate';
+type SortDir = 'asc' | 'desc';
 type QuickFilter = 'all' | 'mine' | 'unassigned' | 'overdue';
 
 interface BoardGroup {
-    id:    string;
-    name:  string;
+    id: string;
+    name: string;
     color: string;
     tasks: any[];
 }
@@ -46,60 +46,60 @@ interface BoardGroup {
 
 // Valid status transitions (mirrors server-side state machine)
 const VALID_TRANSITIONS: Record<string, string[]> = {
-    PENDING:     ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+    PENDING: ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
     IN_PROGRESS: ['COMPLETED', 'PENDING', 'CANCELLED'],
-    COMPLETED:   ['PENDING', 'IN_PROGRESS'],
-    CANCELLED:   ['PENDING'],
+    COMPLETED: ['PENDING', 'IN_PROGRESS'],
+    CANCELLED: ['PENDING'],
 };
 
 const STATUS_OPTIONS = [
     {
         value: 'PENDING',
         label: 'Pendiente',
-        solidBg:  'bg-neutral-400',
-        solidText:'text-white',
-        softBg:   'bg-neutral-100 dark:bg-neutral-800',
+        solidBg: 'bg-neutral-400',
+        solidText: 'text-white',
+        softBg: 'bg-neutral-100 dark:bg-neutral-800',
         softText: 'text-neutral-600 dark:text-neutral-300',
-        dot:      'bg-neutral-400',
-        hex:      '#a3a3a3',
+        dot: 'bg-neutral-400',
+        hex: '#a3a3a3',
     },
     {
         value: 'IN_PROGRESS',
         label: 'En curso',
-        solidBg:  'bg-blue-500',
-        solidText:'text-white',
-        softBg:   'bg-blue-100 dark:bg-blue-900/50',
+        solidBg: 'bg-blue-500',
+        solidText: 'text-white',
+        softBg: 'bg-blue-100 dark:bg-blue-900/50',
         softText: 'text-blue-700 dark:text-blue-300',
-        dot:      'bg-blue-500',
-        hex:      '#3b82f6',
+        dot: 'bg-blue-500',
+        hex: '#3b82f6',
     },
     {
         value: 'COMPLETED',
         label: 'Completado',
-        solidBg:  'bg-green-500',
-        solidText:'text-white',
-        softBg:   'bg-green-100 dark:bg-green-900/50',
+        solidBg: 'bg-green-500',
+        solidText: 'text-white',
+        softBg: 'bg-green-100 dark:bg-green-900/50',
         softText: 'text-green-700 dark:text-green-300',
-        dot:      'bg-green-500',
-        hex:      '#10b981',
+        dot: 'bg-green-500',
+        hex: '#10b981',
     },
     {
         value: 'CANCELLED',
         label: 'Cancelado',
-        solidBg:  'bg-red-400',
-        solidText:'text-white',
-        softBg:   'bg-red-100 dark:bg-red-900/50',
+        solidBg: 'bg-red-400',
+        solidText: 'text-white',
+        softBg: 'bg-red-100 dark:bg-red-900/50',
         softText: 'text-red-600 dark:text-red-300',
-        dot:      'bg-red-400',
-        hex:      '#f87171',
+        dot: 'bg-red-400',
+        hex: '#f87171',
     },
 ] as const;
 
 const PRIORITY_OPTIONS = [
-    { value: 'LOW',    label: 'Baja',    hex: '#a3a3a3', bg: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-500 dark:text-neutral-400' },
-    { value: 'MEDIUM', label: 'Media',   hex: '#f59e0b', bg: 'bg-yellow-100 dark:bg-yellow-900/40', text: 'text-yellow-700 dark:text-yellow-300' },
-    { value: 'HIGH',   label: 'Alta',    hex: '#f97316', bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-700 dark:text-orange-300' },
-    { value: 'URGENT', label: 'Urgente', hex: '#ef4444', bg: 'bg-red-100 dark:bg-red-900/40',      text: 'text-red-700 dark:text-red-300' },
+    { value: 'LOW', label: 'Baja', hex: '#a3a3a3', bg: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-500 dark:text-neutral-400' },
+    { value: 'MEDIUM', label: 'Media', hex: '#f59e0b', bg: 'bg-yellow-100 dark:bg-yellow-900/40', text: 'text-yellow-700 dark:text-yellow-300' },
+    { value: 'HIGH', label: 'Alta', hex: '#f97316', bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-700 dark:text-orange-300' },
+    { value: 'URGENT', label: 'Urgente', hex: '#ef4444', bg: 'bg-red-100 dark:bg-red-900/40', text: 'text-red-700 dark:text-red-300' },
 ] as const;
 
 const GROUP_COLORS = [
@@ -155,7 +155,7 @@ function highlight(text: string, term: string): React.ReactNode {
 /** Stacked avatar(s). Shows up to 3 + overflow count. */
 function AvatarStack({ users, size = 'sm' }: { users: any[]; size?: 'sm' | 'xs' }) {
     const visible = users.slice(0, 3);
-    const extra   = users.length - 3;
+    const extra = users.length - 3;
     const sz = size === 'xs' ? 'w-5 h-5 text-[8px]' : 'w-6 h-6 text-[10px]';
 
     if (!users.length) {
@@ -221,7 +221,7 @@ function LabelDots({ labels }: { labels: any[] }) {
 function ChecklistProgress({ items }: { items: any[] }) {
     if (!items?.length) return null;
     const done = items.filter((i: any) => i.completed).length;
-    const pct  = Math.round((done / items.length) * 100);
+    const pct = Math.round((done / items.length) * 100);
     return (
         <div className="flex items-center gap-1.5" title={`${done}/${items.length} completadas`}>
             <div className="w-12 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
@@ -259,8 +259,8 @@ function StatusPill({
     busy: boolean;
 }) {
     const { open, setOpen, ref } = useDropdown();
-    const cfg    = getStatusCfg(status);
-    const valid  = VALID_TRANSITIONS[status] ?? [];
+    const cfg = getStatusCfg(status);
+    const valid = VALID_TRANSITIONS[status] ?? [];
 
     return (
         <div className="relative" ref={ref}>
@@ -301,11 +301,10 @@ function StatusPill({
                                         }
                                         setOpen(false);
                                     }}
-                                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-xs transition-colors ${
-                                        isAllowed
-                                            ? 'hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer'
-                                            : 'opacity-35 cursor-not-allowed'
-                                    }`}
+                                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-xs transition-colors ${isAllowed
+                                        ? 'hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer'
+                                        : 'opacity-35 cursor-not-allowed'
+                                        }`}
                                 >
                                     <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${opt.solidBg}`} />
                                     <span className={`flex-1 text-left ${isCurrent ? 'font-bold text-theme-primary' : 'text-theme-secondary'}`}>
@@ -389,8 +388,8 @@ function AssigneeCell({
 }) {
     const { open, setOpen, ref } = useDropdown();
     const [search, setSearch] = useState('');
-    const assignees   = task.assignees?.length ? task.assignees : (task.assignedTo ? [task.assignedTo] : []);
-    const primaryId   = task.assignees?.[0]?.id ?? task.assignedTo?.id ?? null;
+    const assignees = task.assignees?.length ? task.assignees : (task.assignedTo ? [task.assignedTo] : []);
+    const primaryId = task.assignees?.[0]?.id ?? task.assignedTo?.id ?? null;
     const filteredUsers = users.filter(u =>
         !search || u.name.toLowerCase().includes(search.toLowerCase())
     );
@@ -471,7 +470,7 @@ function DateCell({
 }) {
     const [editing, setEditing] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const overdue  = isOverdue(task);
+    const overdue = isOverdue(task);
 
     useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
 
@@ -514,7 +513,7 @@ function TitleCell({
     busy: boolean;
 }) {
     const [editing, setEditing] = useState(false);
-    const [value, setValue]     = useState(task.title);
+    const [value, setValue] = useState(task.title);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => { setValue(task.title); }, [task.title]);
@@ -552,9 +551,8 @@ function TitleCell({
             />
             <div className="min-w-0 flex-1">
                 <p
-                    className={`text-sm font-medium text-theme-primary truncate cursor-pointer hover:text-olive-700 dark:hover:text-olive-400 transition-colors ${
-                        task.status === 'COMPLETED' ? 'line-through opacity-50' : ''
-                    }`}
+                    className={`text-sm font-medium text-theme-primary truncate cursor-pointer hover:text-olive-700 dark:hover:text-olive-400 transition-colors ${task.status === 'COMPLETED' ? 'line-through opacity-50' : ''
+                        }`}
                     onClick={e => { e.stopPropagation(); onOpen(); }}
                     onDoubleClick={e => { e.stopPropagation(); if (!busy) setEditing(true); }}
                     title="Clic para abrir · Doble clic para editar"
@@ -660,7 +658,7 @@ function AddTaskRow({ groupId, groupStatus, onAdd }: {
     onAdd: (title: string, projectId: string | null, status?: string) => Promise<void>;
 }) {
     const [active, setActive] = useState(false);
-    const [title,  setTitle]  = useState('');
+    const [title, setTitle] = useState('');
     const ref = useRef<HTMLInputElement>(null);
 
     useEffect(() => { if (active) ref.current?.focus(); }, [active]);
@@ -728,9 +726,9 @@ function BoardGroup({
     sortField: SortField; sortDir: SortDir;
     onSort: (f: SortField) => void;
 }) {
-    const color     = GROUP_COLORS[colorIndex % GROUP_COLORS.length];
+    const color = GROUP_COLORS[colorIndex % GROUP_COLORS.length];
     const completed = group.tasks.filter(t => t.status === 'COMPLETED').length;
-    const pct       = group.tasks.length > 0
+    const pct = group.tasks.length > 0
         ? Math.round((completed / group.tasks.length) * 100) : 0;
 
     // Sort tasks
@@ -738,13 +736,13 @@ function BoardGroup({
         if (sortField === 'none') return group.tasks;
         return [...group.tasks].sort((a, b) => {
             let va: any, vb: any;
-            if (sortField === 'title')    { va = a.title.toLowerCase(); vb = b.title.toLowerCase(); }
-            if (sortField === 'status')   { va = a.status;  vb = b.status;  }
+            if (sortField === 'title') { va = a.title.toLowerCase(); vb = b.title.toLowerCase(); }
+            if (sortField === 'status') { va = a.status; vb = b.status; }
             if (sortField === 'priority') {
                 const order = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 } as Record<string, number>;
                 va = order[a.priority] ?? 99; vb = order[b.priority] ?? 99;
             }
-            if (sortField === 'dueDate')  {
+            if (sortField === 'dueDate') {
                 va = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
                 vb = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
             }
@@ -877,9 +875,9 @@ function KanbanCard({
     onDragStart: (e: React.DragEvent, id: string) => void;
     isDragging: boolean;
 }) {
-    const pri      = getPriorityCfg(task.priority);
-    const assignees= task.assignees?.length ? task.assignees : (task.assignedTo ? [task.assignedTo] : []);
-    const overdue  = isOverdue(task);
+    const pri = getPriorityCfg(task.priority);
+    const assignees = task.assignees?.length ? task.assignees : (task.assignedTo ? [task.assignedTo] : []);
+    const overdue = isOverdue(task);
 
     return (
         <motion.div
@@ -888,68 +886,68 @@ function KanbanCard({
             animate={{ opacity: isDragging ? 0.4 : 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
         >
-        {/* Native div for HTML5 drag (avoids framer-motion type conflict) */}
-        <div
-            draggable
-            onDragStart={e => onDragStart(e as unknown as React.DragEvent<HTMLDivElement>, task.id)}
-            className="surface-secondary border border-theme-primary rounded-xl p-3 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-olive-300 dark:hover:border-olive-700 transition-all select-none"
-            onClick={() => onOpen(task)}
-        >
-            {/* Labels */}
-            {task.labels?.length > 0 && (
-                <div className="flex items-center gap-1 mb-2">
-                    {task.labels.slice(0, 5).map((l: any) => (
-                        <span
-                            key={l.id}
-                            className="inline-block h-1.5 w-6 rounded-full"
-                            style={{ backgroundColor: l.color }}
-                        />
-                    ))}
-                </div>
-            )}
-            {/* Title */}
-            <p className={`text-sm font-medium text-theme-primary leading-snug mb-2 ${task.status === 'COMPLETED' ? 'line-through opacity-50' : ''}`}>
-                {task.title}
-            </p>
-            {/* Footer */}
-            <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5 ${pri.bg} ${pri.text}`}>
-                        <Flag className="w-2 h-2" style={{ color: pri.hex }} />
-                        {pri.label}
-                    </span>
-                    {/* Checklist progress */}
-                    {(task.checklistItems?.length ?? 0) > 0 && (
-                        <span className="text-[9px] text-theme-muted">
-                            {task.checklistItems.filter((i: any) => i.completed).length}/{task.checklistItems.length}✓
+            {/* Native div for HTML5 drag (avoids framer-motion type conflict) */}
+            <div
+                draggable
+                onDragStart={e => onDragStart(e as unknown as React.DragEvent<HTMLDivElement>, task.id)}
+                className="surface-secondary border border-theme-primary rounded-xl p-3 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-olive-300 dark:hover:border-olive-700 transition-all select-none"
+                onClick={() => onOpen(task)}
+            >
+                {/* Labels */}
+                {task.labels?.length > 0 && (
+                    <div className="flex items-center gap-1 mb-2">
+                        {task.labels.slice(0, 5).map((l: any) => (
+                            <span
+                                key={l.id}
+                                className="inline-block h-1.5 w-6 rounded-full"
+                                style={{ backgroundColor: l.color }}
+                            />
+                        ))}
+                    </div>
+                )}
+                {/* Title */}
+                <p className={`text-sm font-medium text-theme-primary leading-snug mb-2 ${task.status === 'COMPLETED' ? 'line-through opacity-50' : ''}`}>
+                    {task.title}
+                </p>
+                {/* Footer */}
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5 ${pri.bg} ${pri.text}`}>
+                            <Flag className="w-2 h-2" style={{ color: pri.hex }} />
+                            {pri.label}
                         </span>
-                    )}
+                        {/* Checklist progress */}
+                        {(task.checklistItems?.length ?? 0) > 0 && (
+                            <span className="text-[9px] text-theme-muted">
+                                {task.checklistItems.filter((i: any) => i.completed).length}/{task.checklistItems.length}✓
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Due date */}
+                        {task.dueDate && (
+                            <span className={`text-[10px] flex items-center gap-0.5 ${overdue ? 'text-red-500 font-semibold' : 'text-theme-muted'}`}>
+                                {overdue && <AlertTriangle className="w-2.5 h-2.5" />}
+                                {fmtDate(task.dueDate)}
+                            </span>
+                        )}
+                        {/* Comments */}
+                        {(task._count?.comments ?? 0) > 0 && (
+                            <span className="text-[9px] text-theme-muted flex items-center gap-0.5">
+                                <MessageSquare className="w-2.5 h-2.5" />
+                                {task._count.comments}
+                            </span>
+                        )}
+                        <AvatarStack users={assignees} size="xs" />
+                    </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Due date */}
-                    {task.dueDate && (
-                        <span className={`text-[10px] flex items-center gap-0.5 ${overdue ? 'text-red-500 font-semibold' : 'text-theme-muted'}`}>
-                            {overdue && <AlertTriangle className="w-2.5 h-2.5" />}
-                            {fmtDate(task.dueDate)}
-                        </span>
-                    )}
-                    {/* Comments */}
-                    {(task._count?.comments ?? 0) > 0 && (
-                        <span className="text-[9px] text-theme-muted flex items-center gap-0.5">
-                            <MessageSquare className="w-2.5 h-2.5" />
-                            {task._count.comments}
-                        </span>
-                    )}
-                    <AvatarStack users={assignees} size="xs" />
-                </div>
+                {/* Project tag */}
+                {task.project && (
+                    <div className="mt-2 pt-2 border-t border-theme-primary/20">
+                        <span className="text-[9px] text-theme-muted">{task.project.code} · {task.project.name}</span>
+                    </div>
+                )}
             </div>
-            {/* Project tag */}
-            {task.project && (
-                <div className="mt-2 pt-2 border-t border-theme-primary/20">
-                    <span className="text-[9px] text-theme-muted">{task.project.code} · {task.project.name}</span>
-                </div>
-            )}
-        </div>
         </motion.div>
     );
 }
@@ -968,7 +966,7 @@ function KanbanColumn({
 }) {
     const [dragOver, setDragOver] = useState(false);
     const [addActive, setAddActive] = useState(false);
-    const [addTitle, setAddTitle]   = useState('');
+    const [addTitle, setAddTitle] = useState('');
     const addRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => { if (addActive) addRef.current?.focus(); }, [addActive]);
@@ -992,9 +990,8 @@ function KanbanColumn({
 
             {/* Drop zone */}
             <div
-                className={`flex-1 flex flex-col gap-2 min-h-[100px] rounded-xl transition-all p-1 ${
-                    dragOver ? 'bg-olive-50 dark:bg-olive-900/20 ring-2 ring-olive-400 ring-dashed' : ''
-                }`}
+                className={`flex-1 flex flex-col gap-2 min-h-[100px] rounded-xl transition-all p-1 ${dragOver ? 'bg-olive-50 dark:bg-olive-900/20 ring-2 ring-olive-400 ring-dashed' : ''
+                    }`}
                 onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={e => { setDragOver(false); onDrop(e, status.value); }}
@@ -1069,30 +1066,30 @@ function StatChip({ label, value, color, dot }: { label: string; value: number; 
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════════ */
-export default function MondayBoard() {
+export default function MondayBoard({ filterProjectId = null }: { filterProjectId?: string | null }) {
     const { data: session } = useSession();
     const toast = useToast();
 
     /* ── Core state ── */
-    const [viewMode,  setViewMode]  = useState<ViewMode>('table');
-    const [groupBy,   setGroupBy]   = useState<GroupBy>('project');
-    const [tasks,     setTasks]     = useState<any[]>([]);
-    const [users,     setUsers]     = useState<any[]>([]);
-    const [loading,   setLoading]   = useState(true);
-    const [refreshing,setRefreshing]= useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>('table');
+    const [groupBy, setGroupBy] = useState<GroupBy>('project');
+    const [tasks, setTasks] = useState<any[]>([]);
+    const [users, setUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     /* ── Filter / sort state ── */
-    const [search,        setSearch]        = useState('');
-    const [filterStatus,  setFilterStatus]  = useState('');
-    const [filterPriority,setFilterPriority]= useState('');
-    const [quickFilter,   setQuickFilter]   = useState<QuickFilter>('all');
-    const [sortField,     setSortField]     = useState<SortField>('none');
-    const [sortDir,       setSortDir]       = useState<SortDir>('asc');
+    const [search, setSearch] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [filterPriority, setFilterPriority] = useState('');
+    const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
+    const [sortField, setSortField] = useState<SortField>('none');
+    const [sortDir, setSortDir] = useState<SortDir>('asc');
 
     /* ── UI state ── */
-    const [collapsedGroups,setCollapsedGroups] = useState<Set<string>>(new Set());
-    const [updatingTasks,  setUpdatingTasks]   = useState<Set<string>>(new Set());
-    const [selectedTask,   setSelectedTask]    = useState<any | null>(null);
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+    const [updatingTasks, setUpdatingTasks] = useState<Set<string>>(new Set());
+    const [selectedTask, setSelectedTask] = useState<any | null>(null);
 
     /* ── Kanban DnD state ── */
     const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -1231,16 +1228,16 @@ export default function MondayBoard() {
 
         for (const task of tasks) {
             if (groupBy === 'project') {
-                const key  = task.project?.id ?? '__none__';
+                const key = task.project?.id ?? '__none__';
                 const name = task.project?.name ?? 'Sin Proyecto';
-                const idx  = [...map.keys()].indexOf(key);
-                const color= GROUP_COLORS[(idx === -1 ? map.size : idx) % GROUP_COLORS.length];
+                const idx = [...map.keys()].indexOf(key);
+                const color = GROUP_COLORS[(idx === -1 ? map.size : idx) % GROUP_COLORS.length];
                 addToGroup(key, name, color, task);
             } else if (groupBy === 'status') {
-                const cfg  = getStatusCfg(task.status);
+                const cfg = getStatusCfg(task.status);
                 addToGroup(task.status, cfg.label, cfg.hex, task);
             } else {
-                const cfg  = getPriorityCfg(task.priority);
+                const cfg = getPriorityCfg(task.priority);
                 addToGroup(task.priority, cfg.label, cfg.hex, task);
             }
         }
@@ -1266,15 +1263,17 @@ export default function MondayBoard() {
             .filter(Boolean) as BoardGroup[];
     }, [tasks, groupBy]);
 
-    /* ── Apply quick filter + search + status + priority ── */
+    /* ── Apply project filter + quick filter + search + status + priority ── */
     const filteredGroups = useMemo(() => {
         const userId = session?.user?.id;
         return allGroups
             .map(g => ({
                 ...g,
                 tasks: g.tasks.filter(t => {
+                    // Project sidebar filter
+                    if (filterProjectId && t.project?.id !== filterProjectId) return false;
                     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
-                    if (filterStatus   && t.status   !== filterStatus)   return false;
+                    if (filterStatus && t.status !== filterStatus) return false;
                     if (filterPriority && t.priority !== filterPriority) return false;
                     if (quickFilter === 'mine' && userId) {
                         const isAssigned = t.assignees?.some((a: any) => a.id === userId) || t.assignedToId === userId;
@@ -1288,30 +1287,31 @@ export default function MondayBoard() {
                 }),
             }))
             .filter(g => g.tasks.length > 0);
-    }, [allGroups, search, filterStatus, filterPriority, quickFilter, session?.user?.id]);
+    }, [allGroups, search, filterStatus, filterPriority, quickFilter, session?.user?.id, filterProjectId]);
 
     /* ── Stats ── */
     const stats = useMemo(() => ({
-        total:      tasks.length,
-        pending:    tasks.filter(t => t.status === 'PENDING').length,
+        total: tasks.length,
+        pending: tasks.filter(t => t.status === 'PENDING').length,
         inProgress: tasks.filter(t => t.status === 'IN_PROGRESS').length,
-        completed:  tasks.filter(t => t.status === 'COMPLETED').length,
-        overdue:    tasks.filter(t => isOverdue(t)).length,
+        completed: tasks.filter(t => t.status === 'COMPLETED').length,
+        overdue: tasks.filter(t => isOverdue(t)).length,
     }), [tasks]);
 
     /* ── Kanban view tasks ── */
     const kanbanCols = useMemo(() => {
         const filtered = tasks.filter(t => {
-            if (search        && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+            if (filterProjectId && t.project?.id !== filterProjectId) return false;
+            if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
             if (filterPriority && t.priority !== filterPriority) return false;
             const uid = session?.user?.id;
-            if (quickFilter === 'mine'       && uid && !t.assignees?.some((a: any) => a.id === uid) && t.assignedToId !== uid) return false;
+            if (quickFilter === 'mine' && uid && !t.assignees?.some((a: any) => a.id === uid) && t.assignedToId !== uid) return false;
             if (quickFilter === 'unassigned' && (t.assignedToId || t.assignees?.length)) return false;
-            if (quickFilter === 'overdue'    && !isOverdue(t)) return false;
+            if (quickFilter === 'overdue' && !isOverdue(t)) return false;
             return true;
         });
         return STATUS_OPTIONS.map(s => ({ ...s, tasks: filtered.filter(t => t.status === s.value) }));
-    }, [tasks, search, filterPriority, quickFilter, session?.user?.id]);
+    }, [tasks, search, filterPriority, quickFilter, session?.user?.id, filterProjectId]);
 
     /* ── Group collapse helpers ── */
     const toggleCollapse = (id: string) => {
@@ -1322,7 +1322,7 @@ export default function MondayBoard() {
         });
     };
     const collapseAll = () => setCollapsedGroups(new Set(allGroups.map(g => g.id)));
-    const expandAll   = () => setCollapsedGroups(new Set());
+    const expandAll = () => setCollapsedGroups(new Set());
 
     const hasFilters = !!(search || filterStatus || filterPriority || quickFilter !== 'all');
 
@@ -1398,10 +1398,10 @@ export default function MondayBoard() {
 
                 {/* Stats chips */}
                 <div className="flex items-center gap-4 flex-wrap">
-                    <StatChip label="total"      value={stats.total}      color="text-theme-primary" />
-                    <StatChip label="pendientes"  value={stats.pending}    color="text-neutral-500 dark:text-neutral-400"    dot="bg-neutral-400" />
-                    <StatChip label="en curso"    value={stats.inProgress} color="text-blue-600 dark:text-blue-400"          dot="bg-blue-500" />
-                    <StatChip label="completadas" value={stats.completed}  color="text-green-600 dark:text-green-400"        dot="bg-green-500" />
+                    <StatChip label="total" value={stats.total} color="text-theme-primary" />
+                    <StatChip label="pendientes" value={stats.pending} color="text-neutral-500 dark:text-neutral-400" dot="bg-neutral-400" />
+                    <StatChip label="en curso" value={stats.inProgress} color="text-blue-600 dark:text-blue-400" dot="bg-blue-500" />
+                    <StatChip label="completadas" value={stats.completed} color="text-green-600 dark:text-green-400" dot="bg-green-500" />
                     {stats.overdue > 0 && (
                         <StatChip label="vencidas" value={stats.overdue} color="text-red-600 dark:text-red-400" dot="bg-red-500" />
                     )}
@@ -1427,10 +1427,10 @@ export default function MondayBoard() {
                 {/* Quick filters */}
                 <div className="flex items-center gap-1">
                     {([
-                        ['all',        'Todas'],
-                        ['mine',       'Mis tareas'],
+                        ['all', 'Todas'],
+                        ['mine', 'Mis tareas'],
                         ['unassigned', 'Sin asignar'],
-                        ['overdue',    'Vencidas'],
+                        ['overdue', 'Vencidas'],
                     ] as [QuickFilter, string][]).map(([q, label]) => (
                         <button
                             key={q}
@@ -1607,8 +1607,8 @@ function EmptyState({ search, hasFilters }: { search: string; hasFilters: boolea
                 {search
                     ? `No hay tareas que coincidan con "${search}"`
                     : hasFilters
-                    ? 'Prueba a cambiar o limpiar los filtros activos'
-                    : 'Agrega tu primera tarea usando el botón "+ Agregar tarea" dentro de un grupo o la barra de abajo.'}
+                        ? 'Prueba a cambiar o limpiar los filtros activos'
+                        : 'Agrega tu primera tarea usando el botón "+ Agregar tarea" dentro de un grupo o la barra de abajo.'}
             </p>
         </div>
     );
