@@ -22,8 +22,6 @@ export async function submitTimeEntry(prevState: any, formData: FormData) {
     // Check permission
     await checkPermission('timeentries', 'create');
 
-
-
     const rawData = {
         projectId: formData.get("projectId"),
         date: formData.get("date"),
@@ -102,8 +100,6 @@ export async function updateTimeEntry(id: string, data: any) {
     if (!entry) {
         return { error: "Entrada no encontrada" };
     }
-
-
 
     // Check permission with ownership
     await checkPermission('timeentries', 'update', { ownerId: entry.userId });
