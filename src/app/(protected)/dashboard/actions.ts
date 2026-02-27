@@ -51,8 +51,8 @@ export async function getDashboardStats() {
             const key = e.projectId;
             if (!acc[key]) {
                 acc[key] = {
-                    code: e.project.code,
-                    name: e.project.name,
+                    code: e.project?.code || 'Desconocido',
+                    name: e.project?.name || 'Proyecto no encontrado',
                     hours: 0,
                 };
             }
@@ -73,7 +73,7 @@ export async function getDashboardStats() {
             projectBreakdown: projectBreakdown.map((p: any, index) => ({
                 ...p,
                 projectId: Object.keys(breakdownMap)[index],
-                entries: weekEntries.filter((e: any) => e.project.code === p.code).length
+                entries: weekEntries.filter((e: any) => e.project?.code === p.code).length
             })),
         };
     } catch (error) {

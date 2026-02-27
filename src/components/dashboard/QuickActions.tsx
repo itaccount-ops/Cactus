@@ -9,7 +9,7 @@ export default function QuickActions() {
         {
             icon: Clock,
             label: 'Registrar Horas',
-            href: '/control-horas/mi-hoja',
+            href: '/hours',
             color: 'olive',
             description: 'Añadir entrada de tiempo'
         },

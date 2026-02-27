@@ -19,7 +19,7 @@ export default function MobileSidebar({ notificationCount = 0 }: MobileSidebarPr
         { icon: Calendar, label: 'Calendario', href: '/calendar' },
         { icon: CalendarDays, label: 'Mis Ausencias', href: '/my-absences' },
         { icon: CheckSquare, label: 'Mis Tareas', href: '/tasks' },
-        { icon: Clock, label: 'Registro Diario', href: '/control-horas/mi-hoja' },
+        { icon: Clock, label: 'Registro Diario', href: '/hours' },
         { icon: Bell, label: 'Notificaciones', href: '/notifications', badge: notificationCount },
         { icon: Settings, label: 'Configuración', href: '/settings' },
     ];

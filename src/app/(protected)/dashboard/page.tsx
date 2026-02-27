@@ -117,8 +117,8 @@ export default async function DashboardPage() {
                                         </span>
                                     </div>
                                     <div>
-                                        <p className="font-bold text-theme-primary">{entry.project.code}</p>
-                                        <p className="text-sm text-theme-tertiary">{entry.project.name}</p>
+                                        <p className="font-bold text-theme-primary">{entry.project?.code || 'Desconocido'}</p>
+                                        <p className="text-sm text-theme-tertiary">{entry.project?.name || 'Proyecto no encontrado'}</p>
                                         {entry.notes && (
                                             <p className="text-xs text-theme-muted mt-1 line-clamp-1">{entry.notes}</p>
                                         )}
