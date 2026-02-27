@@ -1,0 +1,272 @@
+'use client';
+
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
+
+interface Task {
+    id: string;
+    title: string;
+    description?: string;
+    priority: string;
+    status: string;
+    dueDate?: Date;
+    assignedTo: {
+        id: string;
+        name: string;
+    };
+    project?: {
+        code: string;
+        name: string;
+    };
+}
+
+interface CalendarViewProps {
+    tasks: Task[];
+    onTaskClick?: (task: Task) => void;
+}
+
+export default function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [expandedDay, setExpandedDay] = useState<number | null>(null);
+
+    const getDaysInMonth = (date: Date) => {
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDayOfWeek = firstDay.getDay();
+
+        return { daysInMonth, startingDayOfWeek, year, month };
+    };
+
+    const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentDate);
+
+    const previousMonth = () => {
+        setCurrentDate(new Date(year, month - 1, 1));
+    };
+
+    const nextMonth = () => {
+        setCurrentDate(new Date(year, month + 1, 1));
+    };
+
+    const getTasksForDay = (day: number) => {
+        return tasks.filter(task => {
+            if (!task.dueDate) return false;
+            const taskDate = new Date(task.dueDate);
+            return (
+                taskDate.getDate() === day &&
+                taskDate.getMonth() === month &&
+                taskDate.getFullYear() === year
+            );
+        });
+    };
+
+    const getPriorityColor = (priority: string) => {
+        switch (priority) {
+            case 'URGENT': return 'bg-error-600';
+            case 'HIGH': return 'bg-orange-600';
+            case 'MEDIUM': return 'bg-info-600';
+            case 'LOW': return 'bg-neutral-400';
+            default: return 'bg-neutral-400';
+        }
+    };
+
+    const monthNames = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+    const isToday = (day: number) => {
+        const today = new Date();
+        return (
+            day === today.getDate() &&
+            month === today.getMonth() &&
+            year === today.getFullYear()
+        );
+    };
+
+    return (
+        <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 border border-neutral-200 dark:border-neutral-800 shadow-sm">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                    <CalendarIcon className="w-6 h-6 text-olive-600 dark:text-olive-500" />
+                    <h2 className="text-2xl font-black text-neutral-900 dark:text-neutral-100">
+                        {monthNames[month]} {year}
+                    </h2>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <button
+                        onClick={previousMonth}
+                        className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-all"
+                    >
+                        <ChevronLeft size={20} className="text-neutral-600 dark:text-neutral-400" />
+                    </button>
+                    <button
+                        onClick={() => setCurrentDate(new Date())}
+                        className="px-4 py-2 text-sm font-bold text-olive-600 hover:bg-olive-50 dark:text-olive-500 dark:hover:bg-olive-900/30 rounded-lg transition-all"
+                    >
+                        Hoy
+                    </button>
+                    <button
+                        onClick={nextMonth}
+                        className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-all"
+                    >
+                        <ChevronRight size={20} className="text-neutral-600 dark:text-neutral-400" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Day Names */}
+            <div className="grid grid-cols-7 gap-2 mb-2">
+                {dayNames.map(day => (
+                    <div key={day} className="text-center text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase py-2">
+                        {day}
+                    </div>
+                ))}
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-2">
+                {/* Empty cells for days before month starts */}
+                {Array.from({ length: startingDayOfWeek }).map((_, index) => (
+                    <div key={`empty-${index}`} className="aspect-square" />
+                ))}
+
+                {/* Days of the month */}
+                {Array.from({ length: daysInMonth }).map((_, index) => {
+                    const day = index + 1;
+                    const dayTasks = getTasksForDay(day);
+                    const today = isToday(day);
+
+                    return (
+                        <motion.div
+                            key={day}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.01 }}
+                            className={`aspect-square border-2 rounded-xl p-2 transition-all hover:shadow-md ${today
+                                ? 'border-olive-600 bg-olive-50 dark:bg-olive-900/20 dark:border-olive-500'
+                                : dayTasks.length > 0
+                                    ? 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-olive-300 dark:hover:border-olive-600'
+                                    : 'border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50'
+                                }`}
+                        >
+                            <div className="flex flex-col h-full">
+                                {/* Day number */}
+                                <div className={`text-sm font-bold mb-1 ${today ? 'text-olive-700 dark:text-olive-400' : 'text-neutral-900 dark:text-neutral-300'
+                                    }`}>
+                                    {day}
+                                </div>
+
+                                {/* Tasks */}
+                                <div className="flex-1 space-y-1 overflow-y-auto">
+                                    {dayTasks.slice(0, 3).map(task => (
+                                        <button
+                                            key={task.id}
+                                            onClick={() => onTaskClick?.(task)}
+                                            className={`w-full text-left px-2 py-1 rounded text-xs font-medium text-white truncate ${getPriorityColor(task.priority)} hover:opacity-80 transition-all`}
+                                            title={task.title}
+                                        >
+                                            {task.title}
+                                        </button>
+                                    ))}
+                                    {dayTasks.length > 3 && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setExpandedDay(day);
+                                            }}
+                                            className="text-xs text-olive-600 dark:text-olive-400 font-bold px-2 hover:underline text-left w-full"
+                                        >
+                                            +{dayTasks.length - 3} más
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    );
+                })}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800">
+                <p className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase mb-3">Leyenda de Prioridades</p>
+                <div className="flex flex-wrap gap-4">
+                    <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 rounded bg-error-600"></div>
+                        <span className="text-sm text-neutral-600 dark:text-neutral-400">Urgente</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 rounded bg-orange-600"></div>
+                        <span className="text-sm text-neutral-600 dark:text-neutral-400">Alta</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 rounded bg-info-600"></div>
+                        <span className="text-sm text-neutral-600 dark:text-neutral-400">Media</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 rounded bg-neutral-400"></div>
+                        <span className="text-sm text-neutral-600 dark:text-neutral-400">Baja</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Expanded Day Modal */}
+            <AnimatePresence>
+                {expandedDay !== null && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-4 flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800">
+                                <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
+                                    Tareas del {expandedDay} de {monthNames[month]}
+                                </h3>
+                                <button
+                                    onClick={() => setExpandedDay(null)}
+                                    className="p-2 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6 max-h-[60vh] overflow-y-auto space-y-2">
+                                {getTasksForDay(expandedDay).map(task => (
+                                    <div
+                                        key={task.id}
+                                        onClick={() => {
+                                            setExpandedDay(null);
+                                            onTaskClick?.(task);
+                                        }}
+                                        className="flex flex-col p-3 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-olive-500 dark:hover:border-olive-500 cursor-pointer transition-colors"
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold text-white ${getPriorityColor(task.priority)}`}>
+                                                {task.priority === 'URGENT' ? 'URGENTE' : task.priority === 'HIGH' ? 'ALTA' : task.priority === 'MEDIUM' ? 'MEDIA' : 'BAJA'}
+                                            </span>
+                                            {task.project && (
+                                                <span className="text-xs font-medium text-neutral-500">{task.project.code}</span>
+                                            )}
+                                        </div>
+                                        <span className="font-semibold text-neutral-900 dark:text-white text-sm">
+                                            {task.title}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}

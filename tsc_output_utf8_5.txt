@@ -1,0 +1,27 @@
+﻿.next/types/app/api/invoices/[id]/payments/route.ts(166,7): error TS2344: Type '{ __tag__: "POST"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/api/invoices/[id]/route.ts(49,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/api/invoices/[id]/send/route.ts(166,7): error TS2344: Type '{ __tag__: "POST"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+scripts/create-test-chat.ts(19,17): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+scripts/setup-test-chat.ts(48,13): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+src/app/(protected)/finance/page.tsx(65,21): error TS2345: Argument of type '{ invoices: { total: number; paid: number; pending: number; overdueCount: number; thisMonth: number; thisYear: number; }; expenses: { total: number; approved: number; pending: number; thisMonth: number; }; ... 4 more ...; topClients: { ...; }[]; }' is not assignable to parameter of type 'SetStateAction<DashboardData | null>'.
+  Type '{ invoices: { total: number; paid: number; pending: number; overdueCount: number; thisMonth: number; thisYear: number; }; expenses: { total: number; approved: number; pending: number; thisMonth: number; }; ... 4 more ...; topClients: { ...; }[]; }' is not assignable to type 'DashboardData'.
+    Types of property 'monthlyRevenue' are incompatible.
+      Type '{ month: string; invoiced: number | Decimal; collected: number | Decimal; }[]' is not assignable to type '{ month: string; invoiced: number; collected: number; }[]'.
+        Type '{ month: string; invoiced: number | Decimal; collected: number | Decimal; }' is not assignable to type '{ month: string; invoiced: number; collected: number; }'.
+          Types of property 'invoiced' are incompatible.
+            Type 'number | Decimal' is not assignable to type 'number'.
+              Type 'Decimal' is not assignable to type 'number'.
+src/app/(protected)/hours/daily/daily-form.tsx(4,33): error TS2307: Cannot find module '@/app/hours/actions' or its corresponding type declarations.
+src/app/(protected)/hours/daily/daily-form.tsx(17,20): error TS2339: Property 'success' does not exist on type 'never'.
+src/app/(protected)/hours/daily/daily-form.tsx(36,29): error TS2339: Property 'error' does not exist on type 'never'.
+src/app/(protected)/hours/daily/daily-form.tsx(46,74): error TS2339: Property 'error' does not exist on type 'never'.
+src/app/(protected)/hours/daily/daily-form.tsx(50,29): error TS2339: Property 'success' does not exist on type 'never'.
+src/app/(protected)/hours/daily/daily-form.tsx(60,74): error TS2339: Property 'message' does not exist on type 'never'.
+src/app/(protected)/hours/daily/delete-button.tsx(4,33): error TS2307: Cannot find module '@/app/hours/actions' or its corresponding type declarations.
+src/app/(protected)/hours/daily/edit-button.tsx(4,33): error TS2307: Cannot find module '@/app/hours/actions' or its corresponding type declarations.

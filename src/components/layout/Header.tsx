@@ -1,0 +1,193 @@
+'use client';
+
+import { Bell, CheckSquare, MessageSquare, Clock, Briefcase, Calendar } from 'lucide-react';
+import UserMenu from './UserMenu';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { getMyNotifications, markNotificationAsRead, markAllNotificationsAsRead, getUnreadCount } from '@/app/(protected)/notifications/actions';
+import Link from 'next/link';
+
+export default function Header() {
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    useEffect(() => {
+        loadNotifications();
+        // Actualizar cada 30 segundos
+        const interval = setInterval(loadNotifications, 30000);
+
+        return () => {
+            clearInterval(interval);
+        };
+    }, []);
+
+    const loadNotifications = async () => {
+        const [notifs, count] = await Promise.all([
+            getMyNotifications(),
+            getUnreadCount()
+        ]);
+        setNotifications(notifs);
+        setUnreadCount(count);
+    };
+
+    const handleNotificationClick = async (notification: any) => {
+        if (!notification.isRead) {
+            await markNotificationAsRead(notification.id);
+            loadNotifications();
+        }
+        setShowNotifications(false);
+    };
+
+    const handleMarkAllAsRead = async () => {
+        await markAllNotificationsAsRead();
+        loadNotifications();
+    };
+
+    const getNotificationIcon = (notif: any) => {
+        // Si tiene remitente (persona), mostrar su avatar
+        if (notif.sender) {
+            if (notif.sender.image) {
+                return (
+                    <img
+                        src={notif.sender.image}
+                        alt={notif.sender.name}
+                        className="w-8 h-8 rounded-full object-cover border border-neutral-200 dark:border-neutral-700"
+                    />
+                );
+            } else {
+                return (
+                    <div className="w-8 h-8 rounded-full bg-olive-100 dark:bg-olive-900/50 flex items-center justify-center text-olive-700 dark:text-olive-300 text-xs font-bold border border-olive-200 dark:border-olive-800">
+                        {notif.sender.name?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                );
+            }
+        }
+
+        const iconProps = { size: 24, className: "text-olive-600 dark:text-olive-400 stroke-[1.5]" };
+
+        switch (notif.type) {
+            case 'TASK_ASSIGNED':
+            case 'TASK_COMPLETED':
+                return <CheckSquare {...iconProps} />;
+            case 'TASK_COMMENT':
+                return <MessageSquare {...iconProps} />;
+            case 'TASK_DUE_SOON':
+                return <Calendar {...iconProps} />;
+            case 'HOURS_APPROVED':
+                return <Clock {...iconProps} />;
+            case 'PROJECT_ASSIGNED':
+                return <Briefcase {...iconProps} />;
+            default:
+                return <Bell {...iconProps} />;
+        }
+    };
+
+    return (
+        <header className="h-16 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-end px-6 sticky top-0 z-20 shadow-sm transition-colors">
+            <div className="flex items-center space-x-4">
+
+
+                {/* Notifications */}
+                <div className="relative">
+                    <button
+                        onClick={() => setShowNotifications(!showNotifications)}
+                        className="relative p-2 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-all"
+                        title="Notificaciones"
+                    >
+                        <Bell size={22} />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-error-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
+                    </button>
+
+                    <AnimatePresence>
+                        {showNotifications && (
+                            <>
+                                <div
+                                    className="fixed inset-0 z-30"
+                                    onClick={() => setShowNotifications(false)}
+                                />
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="absolute right-0 top-12 w-96 bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 z-40 max-h-[600px] overflow-hidden flex flex-col"
+                                >
+                                    <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between bg-neutral-50 dark:bg-neutral-950">
+                                        <h3 className="font-bold text-neutral-900 dark:text-neutral-100">Notificaciones</h3>
+                                        {unreadCount > 0 && (
+                                            <button
+                                                onClick={handleMarkAllAsRead}
+                                                className="text-xs text-olive-600 hover:text-olive-700 font-bold"
+                                            >
+                                                Marcar todas como leídas
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="overflow-y-auto flex-1">
+                                        {notifications.length === 0 ? (
+                                            <div className="p-12 text-center">
+                                                <Bell size={48} className="mx-auto text-neutral-200 dark:text-neutral-800 mb-3" />
+                                                <p className="text-neutral-400 font-medium">Sin notificaciones</p>
+                                            </div>
+                                        ) : (
+                                            notifications.map((notif) => (
+                                                <button
+                                                    key={notif.id}
+                                                    onClick={() => handleNotificationClick(notif)}
+                                                    className={`w-full p-4 text-left hover:bg-neutral-50 transition-all border-b border-neutral-100 ${!notif.isRead ? 'bg-olive-50/30' : ''
+                                                        }`}
+                                                >
+                                                    <div className="flex items-start space-x-3">
+                                                        <div className="flex-shrink-0 mt-1">
+                                                            {getNotificationIcon(notif)}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-sm font-bold ${!notif.isRead ? 'text-neutral-900' : 'text-neutral-600'}`}>
+                                                                {notif.title}
+                                                            </p>
+                                                            <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
+                                                                {notif.message}
+                                                            </p>
+                                                            <p className="text-xs text-neutral-400 mt-1">
+                                                                {new Date(notif.createdAt).toLocaleString('es-ES', {
+                                                                    day: 'numeric',
+                                                                    month: 'short',
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit'
+                                                                })}
+                                                            </p>
+                                                        </div>
+                                                        {!notif.isRead && (
+                                                            <div className="w-2 h-2 bg-olive-600 rounded-full flex-shrink-0 mt-1"></div>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    {notifications.length > 0 && (
+                                        <Link
+                                            href="/notifications"
+                                            className="p-3 text-center text-sm font-bold text-olive-600 hover:bg-olive-50 border-t border-neutral-100 transition-all"
+                                            onClick={() => setShowNotifications(false)}
+                                        >
+                                            Ver todas las notificaciones
+                                        </Link>
+                                    )}
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                <UserMenu />
+            </div>
+        </header>
+    );
+}
+

@@ -1,0 +1,19 @@
+﻿.next/types/app/api/invoices/[id]/payments/route.ts(166,7): error TS2344: Type '{ __tag__: "POST"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/api/invoices/[id]/route.ts(49,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/api/invoices/[id]/send/route.ts(166,7): error TS2344: Type '{ __tag__: "POST"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+scripts/create-test-chat.ts(19,17): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+scripts/setup-test-chat.ts(48,13): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+src/app/(protected)/finance/page.tsx(65,21): error TS2345: Argument of type '{ invoices: { total: number; paid: number; pending: number; overdueCount: number; thisMonth: number; thisYear: number; }; expenses: { total: number; approved: number; pending: number; thisMonth: number; }; ... 4 more ...; topClients: { ...; }[]; }' is not assignable to parameter of type 'SetStateAction<DashboardData | null>'.
+  Type '{ invoices: { total: number; paid: number; pending: number; overdueCount: number; thisMonth: number; thisYear: number; }; expenses: { total: number; approved: number; pending: number; thisMonth: number; }; ... 4 more ...; topClients: { ...; }[]; }' is not assignable to type 'DashboardData'.
+    Types of property 'topClients' are incompatible.
+      Type '{ name: string; total: number | Decimal; }[]' is not assignable to type '{ name: string; total: number; }[]'.
+        Type '{ name: string; total: number | Decimal; }' is not assignable to type '{ name: string; total: number; }'.
+          Types of property 'total' are incompatible.
+            Type 'number | Decimal' is not assignable to type 'number'.
+              Type 'Decimal' is not assignable to type 'number'.

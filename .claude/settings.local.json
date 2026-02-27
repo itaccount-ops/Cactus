@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 30 npm run dev:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(timeout 25 npm run dev)",
+      "Bash(ls:*)",
+      "Bash(done)",
+      "Bash(xargs:*)",
+      "Bash(wc:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma migrate diff:*)",
+      "Bash(npx prisma migrate deploy:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(del \"C:\\\\Users\\\\MEP\\\\Desktop\\\\platform424\\\\MepTest-main\\\\node_modules\\\\.prisma\\\\client\\\\query_engine-windows.dll.node\")",
+      "Bash(cp:*)"
+    ]
+  }
+}

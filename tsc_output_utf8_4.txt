@@ -1,0 +1,37 @@
+﻿.next/types/app/api/invoices/[id]/payments/route.ts(166,7): error TS2344: Type '{ __tag__: "POST"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/api/invoices/[id]/route.ts(49,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/api/invoices/[id]/send/route.ts(166,7): error TS2344: Type '{ __tag__: "POST"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+prisma/seed.ts(85,17): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+prisma/seed.ts(97,17): error TS2322: Type '"ARCHITECTURE"' is not assignable to type 'Department | undefined'.
+prisma/seed.ts(109,17): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+prisma/seed.ts(133,17): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+prisma/seed.ts(208,17): error TS2322: Type '"ARCHITECTURE"' is not assignable to type 'Department | undefined'.
+prisma/seed.ts(218,17): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+prisma/seed.ts(228,17): error TS2322: Type '"ARCHITECTURE"' is not assignable to type 'Department | undefined'.
+prisma/seed.ts(238,17): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+prisma/seed.ts(248,17): error TS2322: Type '"ARCHITECTURE"' is not assignable to type 'Department | undefined'.
+prisma/seed.ts(258,17): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+scripts/create-test-chat.ts(19,17): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+scripts/setup-test-chat.ts(48,13): error TS2322: Type '"ENGINEERING"' is not assignable to type 'Department | undefined'.
+src/app/(protected)/finance/page.tsx(65,21): error TS2345: Argument of type '{ invoices: { total: number | Decimal; paid: number | Decimal; pending: number | Decimal; overdueCount: number; thisMonth: number | Decimal; thisYear: number | Decimal; }; ... 5 more ...; topClients: { ...; }[]; }' is not assignable to parameter of type 'SetStateAction<DashboardData | null>'.
+  Type '{ invoices: { total: number | Decimal; paid: number | Decimal; pending: number | Decimal; overdueCount: number; thisMonth: number | Decimal; thisYear: number | Decimal; }; ... 5 more ...; topClients: { ...; }[]; }' is not assignable to type 'DashboardData'.
+    The types of 'invoices.total' are incompatible between these types.
+      Type 'number | Decimal' is not assignable to type 'number'.
+        Type 'Decimal' is not assignable to type 'number'.
+src/app/(protected)/hours/actions.ts(885,44): error TS2339: Property 'department' does not exist on type '{ id: string; name: string; email: string; role: Role; companyId: string | null; }'.
+src/app/(protected)/tasks/kanban/KanbanBoard.tsx(160,41): error TS2719: Type '((task: Task) => void) | undefined' is not assignable to type '((task: Task) => void) | undefined'. Two different types with this name exist, but they are unrelated.
+  Type '(task: Task) => void' is not assignable to type '(task: Task) => void'. Two different types with this name exist, but they are unrelated.
+    Types of parameters 'task' and 'task' are incompatible.
+      Type 'Task' is not assignable to type 'Task'. Two different types with this name exist, but they are unrelated.
+        Types of property 'assignedTo' are incompatible.
+          Type '{ id: string; name: string; } | undefined' is not assignable to type '{ id: string; name: string; }'.
+            Type 'undefined' is not assignable to type '{ id: string; name: string; }'.
+src/app/hours/actions.ts(105,52): error TS2559: Type 'string' has no properties in common with type '{ ownerId?: string | undefined; teamId?: string | undefined; skipVetoCheck?: boolean | undefined; }'.
+src/lib/integrations/time-tracking-integration.ts(628,17): error TS2353: Object literal may only specify known properties, and 'billable' does not exist in type 'TimeEntryWhereInput'.
+src/lib/integrations/time-tracking-integration.ts(656,30): error TS18048: 'billableThisMonth._sum' is possibly 'undefined'.
