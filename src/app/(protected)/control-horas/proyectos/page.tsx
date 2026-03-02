@@ -15,16 +15,17 @@ export default function ProyectosPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [departamentoFiltro, setDepartamentoFiltro] = useState('');
     const [userIdFiltro, setUserIdFiltro] = useState('');
+    const [projectFilters, setProjectFilters] = useState<string[]>([]);
 
     useEffect(() => {
         cargarDatos();
-    }, [año, departamentoFiltro, userIdFiltro]);
+    }, [año, departamentoFiltro, userIdFiltro, projectFilters]);
 
     const cargarDatos = async () => {
         setLoading(true);
         setError('');
         try {
-            const result = await getProyectosResumen(año, undefined, departamentoFiltro || undefined, userIdFiltro || undefined);
+            const result = await getProyectosResumen(año, projectFilters.length > 0 ? projectFilters : undefined, departamentoFiltro || undefined, userIdFiltro || undefined);
             setDatos(result);
         } catch (err: any) {
             setError(err.message || 'Error al cargar datos');
@@ -64,6 +65,7 @@ export default function ProyectosPage() {
         setAño(filters.año);
         setDepartamentoFiltro(filters.departmentId);
         setUserIdFiltro(filters.userIds[0] || '');
+        setProjectFilters(filters.projectIds);
     };
 
     // Filtered projects
@@ -120,6 +122,7 @@ export default function ProyectosPage() {
                 periods={['year']}
                 showUserFilter={true}
                 showDepartmentFilter={true}
+                showProjectFilter={true}
                 showSearch={true}
                 searchPlaceholder="Buscar proyecto..."
                 searchQuery={searchQuery}

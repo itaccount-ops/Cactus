@@ -1349,7 +1349,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                     <div>
                         <h1 className="text-xl font-black text-theme-primary flex items-center gap-2">
                             <Layers className="w-5 h-5 text-olive-600 shrink-0" />
-                            Tablero
+                            Monday
                         </h1>
                         <p className="text-xs text-theme-muted mt-0.5">
                             Vista general · {tasks.length} tarea{tasks.length !== 1 ? 's' : ''} en {allGroups.length} grupo{allGroups.length !== 1 ? 's' : ''}
@@ -1543,11 +1543,11 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                         )}
                         {/* Global quick-add */}
                         <button
-                            onClick={() => handleAdd('Nueva tarea', null)}
+                            onClick={() => handleAdd('Nueva tarea', filterProjectId)}
                             className="mt-2 w-full flex items-center gap-2 text-sm text-theme-muted hover:text-olive-600 dark:hover:text-olive-400 transition-colors px-4 py-2.5 rounded-xl border border-dashed border-theme-primary/40 hover:border-olive-400 hover:bg-olive-50/30 dark:hover:bg-olive-900/10"
                         >
                             <Plus className="w-4 h-4" />
-                            Nueva tarea rápida (sin proyecto)
+                            {filterProjectId ? 'Nueva tarea rápida en este proyecto' : 'Nueva tarea rápida (sin proyecto)'}
                         </button>
                     </div>
                 )}

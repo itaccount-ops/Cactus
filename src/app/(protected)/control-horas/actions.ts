@@ -855,7 +855,8 @@ export async function getAccessibleUsers() {
 export async function getMatrizHoras(
     año: number,
     mes: number | null,
-    departamentoFiltro?: string
+    departamentoFiltro?: string,
+    proyectosFiltro?: string[]
 ): Promise<ResultadoMatriz> {
     const user = await getAuthUser();
     if (!canAccessEquipo(user.role)) {
@@ -883,8 +884,13 @@ export async function getMatrizHoras(
     const ultimoDia = mes !== null ? new Date(año, mes + 1, 0, 23, 59, 59) : new Date(año, 11, 31, 23, 59, 59);
 
     // ── 3. Una sola query de TimeEntries ───────────────────────────────────
+    const whereClauseEntries: any = { userId: { in: userIds }, date: { gte: primerDia, lte: ultimoDia } };
+    if (proyectosFiltro && proyectosFiltro.length > 0) {
+        whereClauseEntries.projectId = { in: proyectosFiltro };
+    }
+
     const entries = await prisma.timeEntry.findMany({
-        where: { userId: { in: userIds }, date: { gte: primerDia, lte: ultimoDia } },
+        where: whereClauseEntries,
         select: {
             userId: true, projectId: true, date: true, hours: true,
             project: { select: { id: true, code: true, name: true } },

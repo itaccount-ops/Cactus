@@ -38,7 +38,7 @@ const navItems: NavSection[] = [
             { label: 'Calendario', href: '/calendar', icon: Calendar, desc: 'Eventos y reuniones' },
             { label: 'Mis Ausencias', href: '/my-absences', icon: CalendarDays, desc: 'Solicitar y ver mis vacaciones' },
             { label: 'Mis Tareas', href: '/tasks', icon: CheckSquare, desc: 'Gestionar tareas asignadas' },
-            { label: 'Tablero', href: '/tablero', icon: Layers, desc: 'Vista Monday.com de proyectos y tareas' },
+            { label: 'Monday', href: '/tablero', icon: Layers, desc: 'Vista Monday.com de proyectos y tareas' },
             { label: 'Registro Diario', href: '/hours', icon: Clock, desc: 'Registrar y ver mis horas' },
             { label: 'Notificaciones', href: '/notifications', icon: Bell, desc: 'Centro de avisos' },
         ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER', 'WORKER']

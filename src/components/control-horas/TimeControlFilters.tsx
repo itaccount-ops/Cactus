@@ -9,9 +9,10 @@ import {
     X,
     Search,
     SlidersHorizontal,
+    FolderKanban,
 } from 'lucide-react';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { getDepartamentosConUsuarios, getAccessibleUsers } from '@/app/(protected)/control-horas/actions';
+import { getDepartamentosConUsuarios, getAccessibleUsers, getProyectosActivos } from '@/app/(protected)/control-horas/actions';
 import { MESES } from '@/app/(protected)/control-horas/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ export interface FilterState {
     semana: number;
     userIds: string[];
     departmentId: string;
+    projectIds: string[];
 }
 
 export interface TimeControlFiltersProps {
@@ -40,6 +42,8 @@ export interface TimeControlFiltersProps {
     showUserFilter?: boolean;
     /** Show department selector */
     showDepartmentFilter?: boolean;
+    /** Show project selector */
+    showProjectFilter?: boolean;
     /** Show inline search field */
     showSearch?: boolean;
     /** Placeholder for search */
@@ -113,6 +117,7 @@ export default function TimeControlFilters({
     periods = ['day', 'week', 'month', 'year'],
     showUserFilter = false,
     showDepartmentFilter = false,
+    showProjectFilter = false,
     showSearch = false,
     searchPlaceholder = 'Buscar...',
     searchQuery = '',
@@ -131,14 +136,16 @@ export default function TimeControlFilters({
         semana: getISOWeek(now),
         userIds: [],
         departmentId: '',
+        projectIds: [],
     });
 
     const [departments, setDepartments] = useState<{ id: string; label: string; color: string }[]>([]);
     const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+    const [projects, setProjects] = useState<{ id: string; code: string; name: string }[]>([]);
     const [showAdvanced, setShowAdvanced] = useState(false);
 
-    const hasAdvancedFilters = showUserFilter || showDepartmentFilter;
-    const hasActiveFilters = filters.userIds.length > 0 || filters.departmentId !== '';
+    const hasAdvancedFilters = showUserFilter || showDepartmentFilter || showProjectFilter;
+    const hasActiveFilters = filters.userIds.length > 0 || filters.departmentId !== '' || filters.projectIds.length > 0;
 
     // Load departments and users
     useEffect(() => {
@@ -148,7 +155,10 @@ export default function TimeControlFilters({
         if (showUserFilter) {
             getAccessibleUsers().then(setUsers).catch(console.error);
         }
-    }, [showUserFilter, showDepartmentFilter]);
+        if (showProjectFilter) {
+            getProyectosActivos().then(setProjects).catch(console.error);
+        }
+    }, [showUserFilter, showDepartmentFilter, showProjectFilter]);
 
     // Notify parent on filter change
     useEffect(() => {
@@ -213,7 +223,7 @@ export default function TimeControlFilters({
     })();
 
     const clearFilters = () => {
-        setFilters(prev => ({ ...prev, userIds: [], departmentId: '' }));
+        setFilters(prev => ({ ...prev, userIds: [], departmentId: '', projectIds: [] }));
         setShowAdvanced(false);
     };
 
@@ -300,7 +310,7 @@ export default function TimeControlFilters({
                         Filtros
                         {hasActiveFilters && (
                             <span className="w-4 h-4 flex items-center justify-center bg-olive-600 text-white text-[9px] rounded-full leading-none">
-                                {(filters.userIds.length > 0 ? 1 : 0) + (filters.departmentId ? 1 : 0)}
+                                {(filters.userIds.length > 0 ? 1 : 0) + (filters.departmentId ? 1 : 0) + (filters.projectIds.length > 0 ? 1 : 0)}
                             </span>
                         )}
                     </button>
@@ -342,6 +352,56 @@ export default function TimeControlFilters({
                                 searchPlaceholder="Buscar usuario..."
                                 startIcon={<Users size={14} />}
                             />
+                        </div>
+                    )}
+
+                    {showProjectFilter && projects.length > 0 && (
+                        <div className="min-w-[200px] max-w-sm flex-1">
+                            {/* Multiselect hack using SearchableSelect or similar visual approach.
+                                To reuse existing components cleanly, we will treat the selection as a toggle array.*/}
+                            <div className="flex flex-col gap-2 relative group w-full">
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl cursor-default text-xs w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                                    <FolderKanban size={13} className="text-neutral-500 shrink-0" />
+                                    <span className="text-neutral-500 font-medium truncate shrink-0">Proyectos:</span>
+                                    {filters.projectIds.length === 0 ? (
+                                        <span className="text-neutral-400">Todos</span>
+                                    ) : (
+                                        <span className="font-bold text-olive-600 truncate">{filters.projectIds.length} seleccionados</span>
+                                    )}
+                                </div>
+
+                                {/* Dropdown multi-select */}
+                                <div className="absolute top-full left-0 mt-1 w-[260px] bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 max-h-[300px] flex flex-col overflow-hidden">
+                                    <div className="p-2 border-b border-neutral-100 dark:border-neutral-800 shrink-0 bg-neutral-50 dark:bg-neutral-800/50">
+                                        <p className="text-[10px] font-black uppercase text-neutral-400">Seleccionar Proyectos</p>
+                                    </div>
+                                    <div className="overflow-y-auto p-1.5 hover:scrollbar-thin scrollbar-thumb-neutral-200 dark:scrollbar-thumb-neutral-700 max-h-[250px]">
+                                        {projects.map(p => {
+                                            const isSelected = filters.projectIds.includes(p.id);
+                                            return (
+                                                <div
+                                                    key={p.id}
+                                                    onClick={() => setFilters(prev => {
+                                                        const newIds = isSelected
+                                                            ? prev.projectIds.filter(id => id !== p.id)
+                                                            : [...prev.projectIds, p.id];
+                                                        return { ...prev, projectIds: newIds };
+                                                    })}
+                                                    className={`flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-olive-50 dark:bg-olive-900/30 text-olive-700 dark:text-olive-300 font-semibold' : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-300'
+                                                        }`}
+                                                >
+                                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'bg-olive-500 border-olive-500 text-white' : 'border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800'
+                                                        }`}>
+                                                        {isSelected && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                                                    </div>
+                                                    <span className="font-mono text-[10px] opacity-70 shrink-0">{p.code}</span>
+                                                    <span className="truncate" title={p.name}>{p.name}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
