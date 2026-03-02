@@ -501,13 +501,13 @@ export default function MatrizHorasPage() {
                                                     {personasVisibles.map((persona, i) => {
                                                         const celda = proyecto.celdas[persona.userId] ?? { reales: 0, calculadas: 0 };
                                                         return (
-                                                            <>
-                                                                <td key={`${persona.userId}-c`}
+                                                            <Fragment key={persona.userId}>
+                                                                <td
                                                                     className={`px-2 py-2 text-right text-xs tabular-nums border-l border-b border-neutral-100 dark:border-neutral-800 font-semibold ${celda.calculadas > 0 ? 'text-neutral-800 dark:text-neutral-200' : 'text-neutral-300 dark:text-neutral-700'}`}
                                                                 >
                                                                     {celda.calculadas > 0 ? `${celda.calculadas}h` : '—'}
                                                                 </td>
-                                                                <td key={`${persona.userId}-r`}
+                                                                <td
                                                                     className={`px-2 py-2 text-right text-xs tabular-nums border-b border-neutral-100 dark:border-neutral-800 ${celda.reales > celda.calculadas && celda.reales > 0
                                                                         ? 'text-red-500 dark:text-red-400 font-semibold'
                                                                         : celda.calculadas > celda.reales && celda.calculadas > 0
@@ -517,7 +517,7 @@ export default function MatrizHorasPage() {
                                                                 >
                                                                     {celda.reales > 0 ? `${celda.reales}h` : '—'}
                                                                 </td>
-                                                            </>
+                                                            </Fragment>
                                                         );
                                                     })}
 
@@ -545,14 +545,14 @@ export default function MatrizHorasPage() {
                                             Calculadas
                                         </td>
                                         {personasVisibles.map((p, i) => (
-                                            <>
-                                                <td key={`tot-c-${p.userId}`} className="px-2 py-3 text-right text-xs font-black border-l border-neutral-200 dark:border-neutral-700 tabular-nums text-emerald-700 dark:text-emerald-400">
+                                            <Fragment key={p.userId}>
+                                                <td className="px-2 py-3 text-right text-xs font-black border-l border-neutral-200 dark:border-neutral-700 tabular-nums text-emerald-700 dark:text-emerald-400">
                                                     {p.calculadas > 0 ? `${p.calculadas}h` : '—'}
                                                 </td>
-                                                <td key={`tot-r-${p.userId}`} className="px-2 py-3 text-right text-xs font-black tabular-nums text-blue-600 dark:text-blue-400">
+                                                <td className="px-2 py-3 text-right text-xs font-black tabular-nums text-blue-600 dark:text-blue-400">
                                                     {p.reales > 0 ? `${p.reales}h` : '—'}
                                                 </td>
-                                            </>
+                                            </Fragment>
                                         ))}
                                         <td className="px-2 py-3 text-right text-xs font-black border-l-2 border-neutral-300 dark:border-neutral-600 bg-olive-100 dark:bg-olive-900/30 text-emerald-700 dark:text-emerald-400 tabular-nums">
                                             {datos.totalesGlobales.calculadas > 0 ? `${datos.totalesGlobales.calculadas}h` : '—'}
