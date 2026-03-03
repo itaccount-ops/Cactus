@@ -17,7 +17,8 @@
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
       "Bash(del \"C:\\\\Users\\\\MEP\\\\Desktop\\\\platform424\\\\MepTest-main\\\\node_modules\\\\.prisma\\\\client\\\\query_engine-windows.dll.node\")",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }
