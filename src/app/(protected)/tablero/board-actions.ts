@@ -109,6 +109,21 @@ export async function getOrCreateBoard(projectId?: string | null) {
                     prisma.boardGroup.update({ where: { id: group.id }, data: { columns: DEFAULT_COLUMNS as any } }).catch(() => { });
                 }
             }
+
+            // Failsafe: If the board has zero groups (e.g. they were all deleted or error during creation)
+            if (board.groups.length === 0) {
+                const newGroup = await prisma.boardGroup.create({
+                    data: {
+                        boardId: board.id,
+                        name: 'Grupo 1',
+                        color: '#3b82f6',
+                        order: 0,
+                        columns: DEFAULT_COLUMNS as any
+                    },
+                    include: { items: { include: { subitems: true } } }
+                });
+                board.groups.push(newGroup);
+            }
         }
 
         return { board, users };

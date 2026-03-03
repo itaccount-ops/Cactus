@@ -1002,6 +1002,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                             ? (group.columns as BoardColumn[])
                             : DEFAULT_COLUMNS;
 
+                        const items = group.items || [];
                         const isCollapsed = collapsedGroups.has(group.id);
 
                         return (
@@ -1029,7 +1030,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                     ) : (
                                         <h2 className="font-bold text-lg truncate max-w-[300px]" style={{ color: group.color }}>{group.name}</h2>
                                     )}
-                                    <span className="text-xs text-theme-muted bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded-full">{group.items.length}</span>
+                                    <span className="text-xs text-theme-muted bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded-full">{items.length}</span>
 
                                     {/* Delete group button - Always visible on group-hover */}
                                     {canEditStructure && (
@@ -1066,7 +1067,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                                     onClick={() => toggleSelectGroup(group)}
                                                 >
                                                     {(() => {
-                                                        const itemIds = group.items.map((i: any) => i.id);
+                                                        const itemIds = items.map((i: any) => i.id);
                                                         const allSelected = itemIds.length > 0 && itemIds.every((id: string) => selectedItems.has(id));
                                                         return (
                                                             <div className={`w-4 h-4 rounded border cursor-pointer transition-colors flex items-center justify-center ${allSelected ? 'bg-olive-600 border-olive-600' : 'border-theme-primary/30 hover:border-olive-500'
@@ -1140,7 +1141,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                         </div>
 
                                         <div className="flex flex-col min-w-full">
-                                            {group.items.length === 0 ? (
+                                            {items.length === 0 ? (
                                                 <div className="flex items-center h-9 border-t border-theme-primary/20 hover:bg-neutral-50 dark:hover:bg-neutral-900/40 cursor-text group/add w-fit min-w-full" onClick={() => handleAddItem(group.id)}>
                                                     <div className="w-[350px] shrink-0 h-full flex items-center sticky left-0 bg-white dark:bg-neutral-950 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                                                         <div className="w-10 h-full shrink-0 border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30" />
@@ -1151,7 +1152,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                                     </div>
                                                 </div>
                                             ) : (
-                                                group.items.map((item: any) => (
+                                                items.map((item: any) => (
                                                     <ItemRow
                                                         key={item.id}
                                                         item={item}
@@ -1170,7 +1171,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                                     />
                                                 ))
                                             )}
-                                            {!isMyWork && group.items.length > 0 && (
+                                            {!isMyWork && items.length > 0 && (
                                                 <div className="flex items-center h-9 border-t border-theme-primary/20 hover:bg-neutral-50 dark:hover:bg-neutral-900/40 cursor-text group/add w-fit min-w-full" onClick={() => handleAddItem(group.id)}>
                                                     <div className="w-[350px] shrink-0 h-full flex items-center sticky left-0 bg-white dark:bg-neutral-950 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                                                         <div className="w-10 h-full shrink-0 border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30" />
