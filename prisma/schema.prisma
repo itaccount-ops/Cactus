@@ -1169,7 +1169,6 @@ model Board {
   companyId String?
   projectId String?  
   name      String
-  columns   Json     // [{ id, title, type, width, order }]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -1188,6 +1187,7 @@ model BoardGroup {
   name     String
   color    String
   order    Int
+  columns  Json     @default("[]") // [{ id, title, type, width, order }]
   
   board    Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   items    BoardItem[]

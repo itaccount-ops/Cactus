@@ -16,12 +16,10 @@ export interface BoardColumn {
 }
 
 const DEFAULT_COLUMNS: BoardColumn[] = [
-    { id: 'name', title: 'Nombre', type: 'TEXT', width: 250, order: 0 },
-    { id: 'code', title: 'Código', type: 'CODE', width: 120, order: 1 },
-    { id: 'person', title: 'Persona', type: 'PERSON', width: 150, order: 2 },
-    { id: 'status', title: 'Estado', type: 'STATUS', width: 150, order: 3 },
-    { id: 'date', title: 'Fecha', type: 'DATE', width: 150, order: 4 },
-    { id: 'text', title: 'Texto', type: 'TEXT', width: 250, order: 5 },
+    { id: 'status', title: 'Estado', type: 'STATUS', width: 150, order: 0 },
+    { id: 'person', title: 'Persona', type: 'PERSON', width: 150, order: 1 },
+    { id: 'date', title: 'Fecha', type: 'DATE', width: 150, order: 2 },
+    { id: 'text', title: 'Texto', type: 'TEXT', width: 250, order: 3 },
 ];
 
 /* ─── getOrCreateBoard ──────────────────────────────────────────────── */
@@ -31,11 +29,12 @@ export async function getOrCreateBoard(projectId?: string | null) {
     const companyId = (session.user as any).companyId;
 
     try {
-        let board;
+        let board: any;
         if (projectId) {
             board = await prisma.board.findFirst({
                 where: { projectId, companyId },
                 include: {
+                    project: { select: { name: true } },
                     groups: {
                         orderBy: { order: 'asc' },
                         include: {
@@ -70,12 +69,10 @@ export async function getOrCreateBoard(projectId?: string | null) {
                 data: {
                     name: projectId ? 'Tablero del Proyecto' : 'Tablero Principal',
                     companyId,
-                    projectId,
-                    columns: DEFAULT_COLUMNS as any,
+                    projectId: projectId || null,
                     groups: {
                         create: [
-                            { name: 'Grupo 1', color: '#3b82f6', order: 0 },
-                            { name: 'Grupo 2', color: '#8b5cf6', order: 1 },
+                            { name: 'Grupo 1', color: '#3b82f6', order: 0, columns: DEFAULT_COLUMNS as any }
                         ]
                     }
                 },
@@ -100,6 +97,17 @@ export async function getOrCreateBoard(projectId?: string | null) {
             orderBy: { name: 'asc' }
         });
 
+        // Inject DEFAULT_COLUMNS if missing due to legacy migrated boards
+        if (board && board.groups) {
+            for (const group of board.groups) {
+                if (!group.columns || (Array.isArray(group.columns) && group.columns.length === 0)) {
+                    group.columns = DEFAULT_COLUMNS;
+                    // Auto-sync it asynchronously in background to avoid empty DB states
+                    prisma.boardGroup.update({ where: { id: group.id }, data: { columns: DEFAULT_COLUMNS as any } }).catch(() => { });
+                }
+            }
+        }
+
         return { board, users };
     } catch (error) {
         console.error('[tablero/getOrCreateBoard]', error);
@@ -108,13 +116,13 @@ export async function getOrCreateBoard(projectId?: string | null) {
 }
 
 /* ─── Columns ────────────────────────────────────────────────── */
-export async function updateBoardColumns(boardId: string, columns: BoardColumn[]) {
+export async function updateGroupColumns(groupId: string, columns: BoardColumn[]) {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };
 
     try {
-        await prisma.board.update({
-            where: { id: boardId },
+        await prisma.boardGroup.update({
+            where: { id: groupId },
             data: { columns: columns as any }
         });
         revalidatePath('/tablero');
@@ -132,7 +140,7 @@ export async function createGroup(boardId: string, name: string, color: string) 
     try {
         const count = await prisma.boardGroup.count({ where: { boardId } });
         const group = await prisma.boardGroup.create({
-            data: { boardId, name, color, order: count }
+            data: { boardId, name, color, order: count, columns: DEFAULT_COLUMNS as any }
         });
         revalidatePath('/tablero');
         return { success: true, group };
@@ -361,5 +369,138 @@ export async function deleteSubitem(subitemId: string) {
         return { success: true };
     } catch (error) {
         return { error: 'Error al eliminar subítem' };
+    }
+}
+
+/* ─── My Work (Global View) ──────────────────────────────────── */
+export async function getMyWorkBoard() {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+
+    const userId = session.user.id;
+    const companyId = (session.user as any).companyId;
+
+    try {
+        const allBoards = await prisma.board.findMany({
+            where: { companyId },
+            include: {
+                groups: {
+                    include: {
+                        items: { include: { subitems: true } }
+                    }
+                }
+            }
+        });
+
+        const myItems: any[] = [];
+
+        for (const board of allBoards) {
+            for (const group of board.groups) {
+                const groupCols = (group.columns as unknown as BoardColumn[]) || [];
+                const personColIds = groupCols.filter(c => c.type === 'PERSON').map(c => c.id);
+                const dateColIds = groupCols.filter(c => c.type === 'DATE').map(c => c.id);
+
+                for (const item of group.items) {
+                    const values = (item.values as any) || {};
+                    let isAssigned = false;
+                    for (const pid of personColIds) {
+                        const val = values[pid];
+                        if (Array.isArray(val) && val.includes(userId)) {
+                            isAssigned = true;
+                            break;
+                        } else if (val === userId) {
+                            isAssigned = true;
+                            break;
+                        }
+                    }
+
+                    if (isAssigned) {
+                        let dateVal = null;
+                        for (const did of dateColIds) {
+                            if (values[did]) {
+                                dateVal = values[did];
+                                break;
+                            }
+                        }
+
+                        myItems.push({
+                            ...item,
+                            myWorkDate: dateVal,
+                            context: `${board.name} > ${group.name}`,
+                            myWorkColumns: groupCols
+                        });
+                    }
+                }
+            }
+        }
+
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        const getWeekNumber = (d: Date) => {
+            const date = new Date(d.getTime());
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+            const week1 = new Date(date.getFullYear(), 0, 4);
+            return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+        };
+
+        const currentWeek = getWeekNumber(now);
+
+        const syntheticGroups: any[] = [
+            { id: 'g_past', name: 'Fechas pasadas', color: '#e11d48', order: 0, items: [], columns: DEFAULT_COLUMNS },
+            { id: 'g_today', name: 'Hoy', color: '#16a34a', order: 1, items: [], columns: DEFAULT_COLUMNS },
+            { id: 'g_this_week', name: 'Esta semana', color: '#2563eb', order: 2, items: [], columns: DEFAULT_COLUMNS },
+            { id: 'g_next_week', name: 'La próxima semana', color: '#0284c7', order: 3, items: [], columns: DEFAULT_COLUMNS },
+            { id: 'g_later', name: 'Más tarde', color: '#d97706', order: 4, items: [], columns: DEFAULT_COLUMNS },
+            { id: 'g_no_date', name: 'Sin fecha', color: '#475569', order: 5, items: [], columns: DEFAULT_COLUMNS },
+        ];
+
+        for (const item of myItems) {
+            item.columns = item.myWorkColumns;
+            if (!item.myWorkDate) {
+                syntheticGroups[5].items.push(item);
+                continue;
+            }
+
+            const itemDate = new Date(item.myWorkDate);
+            itemDate.setHours(0, 0, 0, 0);
+
+            if (itemDate < now) {
+                syntheticGroups[0].items.push(item);
+            } else if (itemDate.getTime() === now.getTime()) {
+                syntheticGroups[1].items.push(item);
+            } else {
+                const itemWeek = getWeekNumber(itemDate);
+                if (itemDate.getFullYear() === now.getFullYear() && itemWeek === currentWeek) {
+                    syntheticGroups[2].items.push(item);
+                } else if (itemDate.getFullYear() === now.getFullYear() && itemWeek === currentWeek + 1) {
+                    syntheticGroups[3].items.push(item);
+                } else {
+                    syntheticGroups[4].items.push(item);
+                }
+            }
+        }
+
+        const users = await prisma.user.findMany({
+            where: { isActive: true, companyId },
+            select: { id: true, name: true, image: true, email: true },
+            orderBy: { name: 'asc' }
+        });
+
+        return {
+            board: {
+                id: 'my-work',
+                name: 'Mi trabajo',
+                groups: syntheticGroups,
+                isMyWork: true,
+                columns: []
+            },
+            users
+        };
+
+    } catch (error) {
+        console.error('[tablero/getMyWorkBoard]', error);
+        return { error: 'Error al cargar Mi Trabajo' };
     }
 }

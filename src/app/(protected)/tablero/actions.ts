@@ -263,10 +263,23 @@ export async function deleteTableroTask(taskId: string) {
 export async function getProjectsForTablero() {
     const session = await auth();
     if (!session?.user?.id) return [];
+
+    const userId = session.user.id;
+    const role = (session.user as any).role as string;
     const companyId = (session.user as any).companyId as string | null;
+
+    const where: any = { isActive: true, ...(companyId ? { companyId } : {}) };
+
+    if (!['ADMIN', 'SUPERADMIN', 'MANAGER'].includes(role)) {
+        where.OR = [
+            { teams: { some: { users: { some: { id: userId } } } } },
+            { tasks: { some: { OR: [{ assignedToId: userId }, { assignees: { some: { id: userId } } }, { createdById: userId }] } } }
+        ];
+    }
+
     try {
         const projects = await prisma.project.findMany({
-            where: { isActive: true, ...(companyId ? { companyId } : {}) },
+            where,
             include: {
                 client: { select: { id: true, name: true } },
                 tasks: { select: { id: true, status: true } },
