@@ -332,7 +332,17 @@ function DateCell({ value, onUpdate, width }: { value?: string, onUpdate: (v: st
     const [editing, setEditing] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+    useEffect(() => {
+        if (editing) {
+            inputRef.current?.focus();
+            try {
+                // @ts-ignore
+                inputRef.current?.showPicker();
+            } catch (e) {
+                // Ignore if browser doesn't support showPicker on date inputs
+            }
+        }
+    }, [editing]);
 
     if (editing) {
         return (
@@ -577,13 +587,13 @@ function GroupColorPicker({ color, onUpdate, canEdit }: { color: string, onUpdat
     const { open, setOpen, ref } = useDropdown();
 
     if (!canEdit) {
-        return <ChevronDown className="w-4 h-4 shrink-0" style={{ color }} />;
+        return <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />;
     }
 
     return (
         <div className="relative shrink-0 flex items-center" ref={ref}>
             <button onClick={() => setOpen(!open)} className="w-5 h-5 flex items-center justify-center rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors" title="Cambiar color">
-                <ChevronDown className="w-4 h-4" style={{ color }} />
+                <div className="w-3 h-3 rounded-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.1)] transition-transform hover:scale-110" style={{ backgroundColor: color }} />
             </button>
             <AnimatePresence>
                 {open && (
@@ -620,13 +630,19 @@ function ColumnAdder({ onAdd }: { onAdd: (type: ColumnType, title: string) => vo
             <button onClick={() => setOpen(!open)} className="w-8 h-8 flex items-center justify-center rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 text-theme-muted hover:text-theme-primary transition-colors" title="Añadir columna">
                 <Plus className="w-4 h-4" />
             </button>
-            <AnimatePresence>
-                {open && (
+            {open && createPortal(
+                <AnimatePresence>
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="absolute right-0 top-full mt-2 w-[280px] bg-white dark:bg-neutral-900 border border-theme-primary shadow-2xl rounded-xl p-3 z-50"
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        // Calculate position based on the trigger ref
+                        style={{
+                            position: 'absolute',
+                            top: ref.current ? ref.current.getBoundingClientRect().bottom + window.scrollY + 8 : 0,
+                            right: ref.current ? window.innerWidth - ref.current.getBoundingClientRect().right : 0,
+                        }}
+                        className="w-[280px] bg-white dark:bg-neutral-900 border border-theme-primary shadow-2xl rounded-xl p-3 z-[200]"
                     >
                         {/* Search */}
                         <div className="relative mb-3">
@@ -657,8 +673,9 @@ function ColumnAdder({ onAdd }: { onAdd: (type: ColumnType, title: string) => vo
                             ))}
                         </div>
                     </motion.div>
-                )}
-            </AnimatePresence>
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 }
@@ -677,6 +694,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
     const [draggingColInfo, setDraggingColInfo] = useState<{ id: string, groupId: string } | null>(null);
     const [draggingRowInfo, setDraggingRowInfo] = useState<{ id: string, groupId: string } | null>(null);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
     const loadData = useCallback(async (silent = false) => {
         try {
@@ -767,7 +785,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
     };
 
     const handleDeleteItem = async (id: string, isSub: boolean) => {
-        const action = isSub ? deleteItem : deleteSubitem;
+        const action = isSub ? deleteSubitem : deleteItem;
         const res = await action(id);
         if (res.error) toast.error('Error', res.error);
         else loadData(true);
@@ -878,6 +896,15 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
         });
     };
 
+    const toggleGroupCollapse = (groupId: string) => {
+        setCollapsedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(groupId)) next.delete(groupId);
+            else next.add(groupId);
+            return next;
+        });
+    };
+
     const handleReorderRow = async (targetId: string | null, targetGroupId: string) => {
         if (!board || !draggingRowInfo) return;
         const sourceId = draggingRowInfo.id;
@@ -927,8 +954,8 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-neutral-950">
-            {/* Header */}
-            <div className="px-6 pt-5 pb-3 border-b border-theme-primary shrink-0 sticky top-0 bg-white dark:bg-neutral-950 z-30">
+            {/* Header — Scrollable, not sticky */}
+            <div className="px-6 pt-5 pb-3 border-b border-theme-primary shrink-0 bg-white dark:bg-neutral-950">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-xl font-black text-theme-primary flex items-center gap-2">
@@ -940,7 +967,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-auto px-6 py-5">
+            <div className="flex-1 overflow-auto px-6 py-5 relative">
                 <div className="inline-flex flex-col min-w-max pb-32">
 
                     {/* Groups */}
@@ -949,9 +976,18 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                             ? (group.columns as BoardColumn[])
                             : DEFAULT_COLUMNS;
 
+                        const isCollapsed = collapsedGroups.has(group.id);
+
                         return (
-                            <div key={group.id} className="mb-8">
-                                <div className="flex items-center gap-2 mb-2 py-1 font-sans">
+                            <div key={group.id} className="mb-8 relative transition-all duration-300">
+                                <div className="flex items-center gap-2 mb-2 py-1 font-sans sticky left-0 z-30">
+                                    <button
+                                        className="p-0.5 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-800 text-theme-muted transition-colors shrink-0"
+                                        onClick={() => toggleGroupCollapse(group.id)}
+                                        title={isCollapsed ? "Expandir grupo" : "Colapsar grupo"}
+                                    >
+                                        <ChevronDown className={`w-4 h-4 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} style={{ color: group.color }} />
+                                    </button>
                                     <GroupColorPicker color={group.color} canEdit={canEditStructure} onUpdate={(c) => handleUpdateGroupColor(group.id, c)} />
                                     {canEditStructure ? (
                                         <input
@@ -980,110 +1016,115 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                     )}
                                 </div>
 
-                                <div
-                                    className="border border-theme-primary/20 rounded-md shadow-sm overflow-visible min-h-[50px] pb-2"
-                                    style={{ borderLeft: `3px solid ${group.color}` }}
-                                    onDragOver={(e) => {
-                                        e.preventDefault();
-                                        e.dataTransfer.dropEffect = 'move';
-                                    }}
-                                    onDrop={(e) => {
-                                        e.preventDefault();
-                                        if (draggingRowInfo) handleReorderRow(null, group.id);
-                                    }}
-                                >
-                                    {/* Header Row for Group — NOT sticky, scrolls with content */}
-                                    <div className="flex items-center bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm shadow-sm py-2 border-b border-theme-primary/20 w-fit min-w-full">
-                                        <div className="w-[350px] shrink-0 pl-2 pr-3 font-semibold text-xs text-theme-secondary uppercase tracking-wider sticky left-0 z-20 bg-white dark:bg-neutral-950 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] flex items-center gap-2">
-                                            {/* Group-level checkbox */}
-                                            <div
-                                                className="w-10 shrink-0 flex items-center justify-center cursor-pointer"
-                                                onClick={() => toggleSelectGroup(group)}
-                                            >
-                                                {(() => {
-                                                    const itemIds = group.items.map((i: any) => i.id);
-                                                    const allSelected = itemIds.length > 0 && itemIds.every((id: string) => selectedItems.has(id));
-                                                    return (
-                                                        <div className={`w-4 h-4 rounded border cursor-pointer transition-colors flex items-center justify-center ${allSelected ? 'bg-olive-600 border-olive-600' : 'border-theme-primary/30 hover:border-olive-500'
-                                                            }`}>
-                                                            {allSelected && <Check className="w-3 h-3 text-white" />}
-                                                        </div>
-                                                    );
-                                                })()}
+                                {!isCollapsed && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="border border-theme-primary/20 rounded-md shadow-sm overflow-visible min-h-[50px] pb-2 origin-top"
+                                        style={{ borderLeft: `3px solid ${group.color}` }}
+                                        onDragOver={(e) => {
+                                            e.preventDefault();
+                                            e.dataTransfer.dropEffect = 'move';
+                                        }}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            if (draggingRowInfo) handleReorderRow(null, group.id);
+                                        }}
+                                    >
+                                        {/* Header Row for Group — NOT sticky, scrolls with content */}
+                                        <div className="flex items-center bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm shadow-sm py-2 border-b border-theme-primary/20 w-fit min-w-full">
+                                            <div className="w-[350px] shrink-0 pl-2 pr-3 font-semibold text-xs text-theme-secondary uppercase tracking-wider sticky left-0 z-20 bg-white dark:bg-neutral-950 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] flex items-center gap-2">
+                                                {/* Group-level checkbox */}
+                                                <div
+                                                    className="w-10 shrink-0 flex items-center justify-center cursor-pointer"
+                                                    onClick={() => toggleSelectGroup(group)}
+                                                >
+                                                    {(() => {
+                                                        const itemIds = group.items.map((i: any) => i.id);
+                                                        const allSelected = itemIds.length > 0 && itemIds.every((id: string) => selectedItems.has(id));
+                                                        return (
+                                                            <div className={`w-4 h-4 rounded border cursor-pointer transition-colors flex items-center justify-center ${allSelected ? 'bg-olive-600 border-olive-600' : 'border-theme-primary/30 hover:border-olive-500'
+                                                                }`}>
+                                                                {allSelected && <Check className="w-3 h-3 text-white" />}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                                Nombre
                                             </div>
-                                            Nombre
+                                            {columns.map((col: BoardColumn) => (
+                                                <div
+                                                    key={col.id}
+                                                    draggable
+                                                    onDragStart={(e) => {
+                                                        setDraggingColInfo({ id: col.id, groupId: group.id });
+                                                        e.dataTransfer.effectAllowed = 'move';
+                                                    }}
+                                                    onDragEnd={() => setDraggingColInfo(null)}
+                                                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                                                    onDrop={(e) => {
+                                                        e.preventDefault();
+                                                        if (draggingColInfo && draggingColInfo.groupId === group.id) {
+                                                            handleReorderColumns(draggingColInfo.id, col.id, group.id);
+                                                        }
+                                                    }}
+                                                    className={`group/col font-semibold text-xs text-theme-secondary uppercase tracking-wider border-l border-theme-primary/10 px-3 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative ${draggingColInfo?.id === col.id ? 'opacity-50' : ''}`}
+                                                    style={{ width: col.width || 150 }}
+                                                >
+                                                    {col.title}
+                                                    {/* Delete column button on hover */}
+                                                    {canEditStructure && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteColumn(col.id, group.id); }}
+                                                            className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/col:opacity-100 transition-opacity hover:bg-red-600 z-30"
+                                                            title={`Eliminar ${col.title}`}
+                                                        >
+                                                            <X className="w-2.5 h-2.5" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            {canEditStructure && (
+                                                <div className="flex items-center pl-2">
+                                                    <ColumnAdder onAdd={(type, title) => handleAddColumn(type, title, group.id)} />
+                                                </div>
+                                            )}
                                         </div>
-                                        {columns.map((col: BoardColumn) => (
-                                            <div
-                                                key={col.id}
-                                                draggable
-                                                onDragStart={(e) => {
-                                                    setDraggingColInfo({ id: col.id, groupId: group.id });
-                                                    e.dataTransfer.effectAllowed = 'move';
-                                                }}
-                                                onDragEnd={() => setDraggingColInfo(null)}
-                                                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                                                onDrop={(e) => {
-                                                    e.preventDefault();
-                                                    if (draggingColInfo && draggingColInfo.groupId === group.id) {
-                                                        handleReorderColumns(draggingColInfo.id, col.id, group.id);
-                                                    }
-                                                }}
-                                                className={`group/col font-semibold text-xs text-theme-secondary uppercase tracking-wider border-l border-theme-primary/10 px-3 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative ${draggingColInfo?.id === col.id ? 'opacity-50' : ''}`}
-                                                style={{ width: col.width || 150 }}
-                                            >
-                                                {col.title}
-                                                {/* Delete column button on hover */}
-                                                {canEditStructure && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleDeleteColumn(col.id, group.id); }}
-                                                        className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/col:opacity-100 transition-opacity hover:bg-red-600 z-30"
-                                                        title={`Eliminar ${col.title}`}
-                                                    >
-                                                        <X className="w-2.5 h-2.5" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                        {canEditStructure && (
-                                            <div className="flex items-center pl-2">
-                                                <ColumnAdder onAdd={(type, title) => handleAddColumn(type, title, group.id)} />
-                                            </div>
-                                        )}
-                                    </div>
 
-                                    {group.items.length === 0 ? (
-                                        <div className="p-4 text-sm text-theme-muted text-center cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-900/40 sticky left-0" onClick={() => handleAddItem(group.id)}>
-                                            + Añadir elemento
-                                        </div>
-                                    ) : (
-                                        group.items.map((item: any) => (
-                                            <ItemRow
-                                                key={item.id}
-                                                item={item}
-                                                columns={columns}
-                                                users={users}
-                                                onUpdateValue={handleUpdateItemValue}
-                                                onUpdateName={handleUpdateItemName}
-                                                onDeleteItem={handleDeleteItem}
-                                                onCreateSubitem={handleCreateSubitem}
-                                                draggingRowId={draggingRowInfo?.id}
-                                                onDragStart={(id, groupId) => setDraggingRowInfo({ id, groupId })}
-                                                onDragEnd={() => setDraggingRowInfo(null)}
-                                                onDropRow={(targetId, targetGroupId) => handleReorderRow(targetId, targetGroupId)}
-                                                isSelected={selectedItems.has(item.id)}
-                                                onToggleSelect={() => toggleSelectItem(item.id)}
-                                            />
-                                        ))
-                                    )}
-                                    {!isMyWork && group.items.length > 0 && (
-                                        <div className="flex items-center h-9 border-t border-theme-primary/20 hover:bg-neutral-50 dark:hover:bg-neutral-900/40 cursor-text group/add w-fit min-w-full" onClick={() => handleAddItem(group.id)}>
-                                            <div className="w-[350px] shrink-0 border-r border-theme-primary/10 h-full flex items-center px-4 text-xs text-theme-muted transition-colors group-hover/add:text-theme-primary sticky left-0 bg-white dark:bg-neutral-950 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                        {group.items.length === 0 ? (
+                                            <div className="p-4 text-sm text-theme-muted text-center cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-900/40 sticky left-0" onClick={() => handleAddItem(group.id)}>
                                                 + Añadir elemento
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
+                                        ) : (
+                                            group.items.map((item: any) => (
+                                                <ItemRow
+                                                    key={item.id}
+                                                    item={item}
+                                                    columns={columns}
+                                                    users={users}
+                                                    onUpdateValue={handleUpdateItemValue}
+                                                    onUpdateName={handleUpdateItemName}
+                                                    onDeleteItem={handleDeleteItem}
+                                                    onCreateSubitem={handleCreateSubitem}
+                                                    draggingRowId={draggingRowInfo?.id}
+                                                    onDragStart={(id, groupId) => setDraggingRowInfo({ id, groupId })}
+                                                    onDragEnd={() => setDraggingRowInfo(null)}
+                                                    onDropRow={(targetId, targetGroupId) => handleReorderRow(targetId, targetGroupId)}
+                                                    isSelected={selectedItems.has(item.id)}
+                                                    onToggleSelect={() => toggleSelectItem(item.id)}
+                                                />
+                                            ))
+                                        )}
+                                        {!isMyWork && group.items.length > 0 && (
+                                            <div className="flex items-center h-9 border-t border-theme-primary/20 hover:bg-neutral-50 dark:hover:bg-neutral-900/40 cursor-text group/add w-fit min-w-full" onClick={() => handleAddItem(group.id)}>
+                                                <div className="w-[350px] shrink-0 border-r border-theme-primary/10 h-full flex items-center px-4 text-xs text-theme-muted transition-colors group-hover/add:text-theme-primary sticky left-0 bg-white dark:bg-neutral-950 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                    + Añadir elemento
+                                                </div>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                )}
                             </div>
                         );
                     })}
