@@ -35,6 +35,7 @@ model Company {
   taxRates     TaxRate[]
   teams        Team[]
   users        User[]
+  boards       Board[]
 
   @@index([slug])
 }
@@ -144,6 +145,7 @@ model Project {
   tasks           Task[]
   teams           Team[]                  @relation("TeamProject")
   timeEntries     TimeEntry[]
+  boards          Board[]
 
   @@index([companyId])
   @@index([clientId])
@@ -1157,3 +1159,68 @@ enum QuoteStatus {
   EXPIRED
   CONVERTED
 }
+
+// ==========================================
+// DYNAMIC MONDAY-STYLE BOARDS
+// ==========================================
+
+model Board {
+  id        String   @id @default(cuid())
+  companyId String?
+  projectId String?  
+  name      String
+  columns   Json     // [{ id, title, type, width, order }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  groups    BoardGroup[]
+  
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([projectId])
+}
+
+model BoardGroup {
+  id       String   @id @default(cuid())
+  boardId  String
+  name     String
+  color    String
+  order    Int
+  
+  board    Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  items    BoardItem[]
+
+  @@index([boardId])
+}
+
+model BoardItem {
+  id        String   @id @default(cuid())
+  groupId   String
+  name      String
+  values    Json     // { "col_id": value }
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  group     BoardGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  subitems  BoardSubitem[]
+
+  @@index([groupId])
+}
+
+model BoardSubitem {
+  id        String   @id @default(cuid())
+  itemId    String
+  name      String
+  values    Json     // { "col_id": value }
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  item      BoardItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
