@@ -25,11 +25,13 @@ const DEFAULT_COLUMNS: BoardColumn[] = [
 
 /* ─── getOrCreateBoard ──────────────────────────────────────────────── */
 export async function getOrCreateBoard(projectId?: string | null) {
-    const session = await auth();
-    if (!session?.user?.id) return { error: 'No autorizado' };
-    const companyId = (session.user as any).companyId;
-
     try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            console.error('[tablero/getOrCreateBoard] auth() returned null – no session', { projectId });
+            return { error: 'No autorizado' };
+        }
+        const companyId = (session.user as any).companyId;
         let board: any;
         if (projectId) {
             board = await prisma.board.findFirst({
@@ -375,13 +377,15 @@ export async function deleteSubitem(subitemId: string) {
 
 /* ─── My Work (Global View) ──────────────────────────────────── */
 export async function getMyWorkBoard() {
-    const session = await auth();
-    if (!session?.user?.id) return { error: 'No autorizado' };
-
-    const userId = session.user.id;
-    const companyId = (session.user as any).companyId;
-
     try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            console.error('[tablero/getMyWorkBoard] auth() returned null – no session');
+            return { error: 'No autorizado' };
+        }
+
+        const userId = session.user.id;
+        const companyId = (session.user as any).companyId;
         const allBoards = await prisma.board.findMany({
             where: { companyId },
             include: {

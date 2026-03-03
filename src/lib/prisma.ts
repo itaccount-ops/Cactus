@@ -18,9 +18,8 @@ const prismaClientSingleton = () => {
         });
     }
 
-    console.log('🔌 Initializing Prisma Client with REAL database connection');
     return new PrismaClient({
-        log: ['query'],
+        log: ['error', 'warn'],
     })
 }
 

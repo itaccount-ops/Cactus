@@ -189,6 +189,7 @@ function StatusCell({ value, onUpdate, width }: { value?: string, onUpdate: (v: 
                         {STATUS_OPTIONS.map(opt => (
                             <button
                                 key={opt.value}
+                                onMouseDown={e => e.stopPropagation()}
                                 onClick={e => {
                                     e.stopPropagation();
                                     onUpdate(opt.value);
@@ -464,9 +465,9 @@ function ItemRow({
             >
 
                 {/* Fixed Name Column — checkbox + name, Monday style */}
-                <div className="w-[350px] shrink-0 flex items-center h-10 relative sticky left-0 bg-white dark:bg-neutral-950 z-20 border-r border-theme-primary/30 group-hover:bg-neutral-50 dark:group-hover:bg-neutral-900/40 transition-colors">
+                <div className="w-[350px] shrink-0 flex items-center h-10 relative sticky left-0 bg-white dark:bg-neutral-950 z-40 border-r border-theme-primary/30 group-hover:bg-neutral-50 dark:group-hover:bg-neutral-900/40 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                     {/* Checkbox & Expand area (Left) */}
-                    <div className="w-10 h-full shrink-0 flex items-center justify-center border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30">
+                    <div className="w-10 h-full shrink-0 flex items-center justify-center border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30 relative">
                         <div className="flex items-center gap-1">
                             <div className="flex items-center justify-center w-5" onClick={e => { e.stopPropagation(); onToggleSelect?.(); }}>
                                 <div className={`w-4 h-4 rounded border cursor-pointer transition-colors flex items-center justify-center ${isSelected ? 'bg-olive-600 border-olive-600' : 'border-theme-primary/30 hover:border-olive-500'
@@ -475,17 +476,26 @@ function ItemRow({
                                 </div>
                             </div>
 
-                            {!isSubitem && (
+                            {!isSubitem && item.subitems?.length > 0 && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setSubItemsOpen(!subItemsOpen); }}
-                                    className={`p-0.5 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors ${item.subitems?.length ? 'text-theme-primary' : 'text-theme-muted opacity-0 group-hover:opacity-100'}`}
+                                    className="p-0.5 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors text-theme-primary absolute right-0 translate-x-1/2 bg-white dark:bg-neutral-900 shadow-sm border border-theme-primary/20 z-10"
                                 >
                                     {subItemsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
                                 </button>
                             )}
 
+                            {!isSubitem && (!item.subitems || item.subitems.length === 0) && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setSubItemsOpen(!subItemsOpen); }}
+                                    className="p-0.5 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors text-theme-muted opacity-0 group-hover:opacity-100 absolute right-1"
+                                >
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+
                             {isSubitem && (
-                                <CornerDownRight className="w-3.5 h-3.5 text-theme-muted shrink-0" />
+                                <CornerDownRight className="w-3.5 h-3.5 text-theme-muted shrink-0 absolute right-1" />
                             )}
                         </div>
                     </div>
@@ -1034,11 +1044,9 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                 </div>
 
                                 {!isCollapsed && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="border border-theme-primary/20 rounded-md shadow-sm overflow-visible min-h-[50px] pb-2 origin-top"
+                                    <div
+                                        key={group.id}
+                                        className="mb-8 rounded-xl ring-1 ring-theme-primary/20 bg-white dark:bg-neutral-900 shadow-sm animate-in fade-in duration-300 min-h-[50px] overflow-visible"
                                         style={{ borderLeft: `3px solid ${group.color}` }}
                                         onDragOver={(e) => {
                                             e.preventDefault();
@@ -1051,7 +1059,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                     >
                                         {/* Header Row for Group */}
                                         <div className="flex items-center bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm shadow-sm border-b border-theme-primary/20 w-fit min-w-full h-10">
-                                            <div className="w-[350px] shrink-0 font-semibold text-xs text-theme-secondary uppercase tracking-wider sticky left-0 z-20 bg-white dark:bg-neutral-950 flex items-center h-full border-r border-theme-primary/30">
+                                            <div className="w-[350px] shrink-0 font-semibold text-xs text-theme-secondary uppercase tracking-wider sticky left-0 z-40 bg-white dark:bg-neutral-950 flex items-center h-full border-r border-theme-primary/30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                                                 {/* Group-level checkbox area */}
                                                 <div
                                                     className="w-10 h-full shrink-0 flex items-center justify-center cursor-pointer border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30"
@@ -1133,10 +1141,13 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
 
                                         <div className="flex flex-col min-w-full">
                                             {group.items.length === 0 ? (
-                                                <div className="p-4 text-sm text-theme-muted text-center cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-900/40 sticky left-0 border-t border-theme-primary/10" onClick={() => handleAddItem(group.id)}>
-                                                    <div className="inline-flex items-center">
-                                                        <Plus className="w-4 h-4 mr-2" />
-                                                        Añadir elemento
+                                                <div className="flex items-center h-9 border-t border-theme-primary/20 hover:bg-neutral-50 dark:hover:bg-neutral-900/40 cursor-text group/add w-fit min-w-full" onClick={() => handleAddItem(group.id)}>
+                                                    <div className="w-[350px] shrink-0 h-full flex items-center sticky left-0 bg-white dark:bg-neutral-950 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                                                        <div className="w-10 h-full shrink-0 border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30" />
+                                                        <div className="flex-1 px-4 text-xs text-theme-muted transition-colors group-hover/add:text-theme-primary flex items-center">
+                                                            <Plus className="w-3.5 h-3.5 mr-1" />
+                                                            Añadir elemento
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ) : (
@@ -1161,13 +1172,16 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                             )}
                                             {!isMyWork && group.items.length > 0 && (
                                                 <div className="flex items-center h-9 border-t border-theme-primary/20 hover:bg-neutral-50 dark:hover:bg-neutral-900/40 cursor-text group/add w-fit min-w-full" onClick={() => handleAddItem(group.id)}>
-                                                    <div className="w-[350px] shrink-0 h-full flex items-center px-4 text-xs text-theme-muted transition-colors group-hover/add:text-theme-primary sticky left-0 bg-white dark:bg-neutral-950 z-10">
-                                                        + Añadir elemento
+                                                    <div className="w-[350px] shrink-0 h-full flex items-center sticky left-0 bg-white dark:bg-neutral-950 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                                                        <div className="w-10 h-full shrink-0 border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30" />
+                                                        <div className="flex-1 px-4 text-xs text-theme-muted transition-colors group-hover/add:text-theme-primary">
+                                                            + Añadir elemento
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )}
                             </div>
                         );
