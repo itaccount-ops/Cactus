@@ -183,9 +183,9 @@ describe("Permissions - getBasePermission Function", () => {
     });
 
     describe("Edge Cases", () => {
-        // Validation of runtime strings if they bypass TS would return false, 
-        // but for TS purposes we can't pass invalid strings.
-        // Keeping only valid TS usage.
+        it("should return false for unknown role", () => {
+            expect(getBasePermission("UNKNOWN" as any, "projects", "read")).toBe(false);
+        });
     });
 });
 

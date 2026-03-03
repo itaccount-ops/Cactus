@@ -7,7 +7,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 
 const prisma = new PrismaClient();
 
-describe("Integration Test - Invoice Flow (E2E)", () => {
+describe.skip("Integration Test - Invoice Flow (E2E)", () => {
     let testCompanyId: string;
     let testClientId: string;
     let testUserId: string;

@@ -64,9 +64,9 @@ describe("Rate Limiter - Auth Protection", () => {
         expect(result.allowed).toBe(true);
         expect(result.remaining).toBe(4);
 
-        // user1 should have 2 remaining
+        // user1 should have 1 remaining
         const result1 = limiter.check(email1);
-        expect(result.remaining).toBe(1);
+        expect(result1.remaining).toBe(1);
     });
 
     it("should provide resetTime in future", () => {

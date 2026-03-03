@@ -12,9 +12,9 @@ type EntityStates = Record<string, StateTransitions>;
 const STATE_MACHINES: EntityStates = {
     // Tasks: estados y transiciones permitidas
     Task: {
-        PENDING: ["IN_PROGRESS", "COMPLETED", "CANCELLED"], // Permitir marcar como completada directamente
+        PENDING: ["IN_PROGRESS", "CANCELLED"],
         IN_PROGRESS: ["COMPLETED", "PENDING", "CANCELLED"],
-        COMPLETED: ["PENDING", "IN_PROGRESS"], // Permitir reabrir tareas completadas
+        COMPLETED: [], // Estado terminal
         CANCELLED: ["PENDING"], // Puede reactivarse
     },
 
