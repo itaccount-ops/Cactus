@@ -16,10 +16,11 @@ export interface BoardColumn {
 }
 
 const DEFAULT_COLUMNS: BoardColumn[] = [
-    { id: 'status', title: 'Estado', type: 'STATUS', width: 150, order: 0 },
+    { id: 'code', title: 'Código', type: 'CODE', width: 120, order: 0 },
     { id: 'person', title: 'Persona', type: 'PERSON', width: 150, order: 1 },
-    { id: 'date', title: 'Fecha', type: 'DATE', width: 150, order: 2 },
-    { id: 'text', title: 'Texto', type: 'TEXT', width: 250, order: 3 },
+    { id: 'status', title: 'Estado', type: 'STATUS', width: 150, order: 2 },
+    { id: 'date', title: 'Fecha', type: 'DATE', width: 150, order: 3 },
+    { id: 'text', title: 'Texto', type: 'TEXT', width: 250, order: 4 },
 ];
 
 /* ─── getOrCreateBoard ──────────────────────────────────────────────── */

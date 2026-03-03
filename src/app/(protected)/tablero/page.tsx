@@ -5,7 +5,7 @@ import ProjectSidebar from '@/components/tablero/ProjectSidebar';
 import MondayBoard from '@/components/tablero/MondayBoard';
 
 export default function TableroPage() {
-    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>('my-work');
     const [boardKey, setBoardKey] = useState(0);
 
     return (
