@@ -165,45 +165,74 @@ function CodeCell({ value, onUpdate, width }: { value?: string, onUpdate: (v: st
     );
 }
 
-// 3. STATUS CELL (Solid color blocks mimicking Monday)
+// 3. STATUS CELL (Solid color blocks mimicking Monday) — portal dropdown to escape overflow:hidden
 function StatusCell({ value, onUpdate, width }: { value?: string, onUpdate: (v: string) => void, width: number }) {
-    const { open, setOpen, ref } = useDropdown();
+    const [open, setOpen] = useState(false);
+    const triggerRef = useRef<HTMLDivElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 160 });
     const cfg = getStatusCfg(value);
 
+    // Close on outside click
+    useEffect(() => {
+        if (!open) return;
+        function handler(e: MouseEvent) {
+            if (triggerRef.current?.contains(e.target as Node)) return;
+            if (dropdownRef.current?.contains(e.target as Node)) return;
+            setOpen(false);
+        }
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [open]);
+
+    // Calculate dropdown position when opening
+    useEffect(() => {
+        if (open && triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            setPos({
+                top: rect.bottom + 2,
+                left: rect.left,
+                width: Math.max(rect.width, 160),
+            });
+        }
+    }, [open]);
+
     return (
-        <div className="relative h-10 flex items-center justify-center cursor-pointer p-0.5" style={{ width }} ref={ref} onClick={e => { e.stopPropagation(); setOpen(!open); }}>
+        <div
+            className="relative h-10 flex items-center justify-center cursor-pointer p-0.5"
+            style={{ width }}
+            ref={triggerRef}
+            onClick={e => { e.stopPropagation(); setOpen(prev => !prev); }}
+        >
             {/* The Solid Block */}
             <div className={`w-full h-full flex items-center justify-center transition-all ${cfg.bg} ${cfg.text} hover:opacity-90 ${!value ? 'group-hover:bg-neutral-300 dark:group-hover:bg-neutral-600' : ''}`}>
                 <span className="text-[11px] font-medium tracking-wide">{cfg.label}</span>
             </div>
 
-            {/* Dropdown */}
-            <AnimatePresence>
-                {open && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                        transition={{ duration: 0.1 }}
-                        className="absolute z-[100] top-full mt-1 w-full left-0 bg-white dark:bg-neutral-900 border border-theme-primary rounded-lg shadow-xl p-1.5 flex flex-col gap-1"
-                    >
-                        {STATUS_OPTIONS.map(opt => (
-                            <button
-                                key={opt.value}
-                                onMouseDown={e => e.stopPropagation()}
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    onUpdate(opt.value);
-                                    setOpen(false);
-                                }}
-                                className={`w-full h-8 flex items-center justify-center text-[11px] font-medium text-white transition-opacity hover:opacity-85 ${opt.bg}`}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Portal dropdown — renders at document.body so nothing clips it */}
+            {open && typeof document !== 'undefined' && createPortal(
+                <div
+                    ref={dropdownRef}
+                    className="fixed z-[9999] bg-white dark:bg-neutral-900 border border-theme-primary rounded-lg shadow-2xl p-1.5 flex flex-col gap-1"
+                    style={{ top: pos.top, left: pos.left, width: pos.width }}
+                    onClick={e => e.stopPropagation()}
+                >
+                    {STATUS_OPTIONS.map(opt => (
+                        <button
+                            key={opt.value}
+                            onClick={e => {
+                                e.stopPropagation();
+                                onUpdate(opt.value);
+                                setOpen(false);
+                            }}
+                            className={`w-full h-8 flex items-center justify-center text-[11px] font-medium text-white transition-opacity hover:opacity-85 rounded-sm ${opt.bg}`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>,
+                document.body
+            )}
         </div>
     );
 }
