@@ -465,7 +465,7 @@ function ItemRow({
             >
 
                 {/* Fixed Name Column — checkbox + name, Monday style */}
-                <div className="w-[350px] shrink-0 flex items-center h-10 relative sticky left-0 bg-white dark:bg-neutral-950 z-40 border-r border-theme-primary/30 group-hover:bg-neutral-50 dark:group-hover:bg-neutral-900/40 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                <div className="w-[350px] shrink-0 flex items-center h-10 relative sticky left-0 bg-white dark:bg-neutral-950 z-10 border-r border-theme-primary/30 group-hover:bg-neutral-50 dark:group-hover:bg-neutral-900/40 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                     {/* Checkbox & Expand area (Left) */}
                     <div className="w-10 h-full shrink-0 flex items-center justify-center border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30 relative">
                         <div className="flex items-center gap-1">
@@ -1007,7 +1007,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
 
                         return (
                             <div key={group.id} className="mb-8 relative transition-all duration-300 group/group">
-                                <div className="flex items-center gap-2 mb-2 py-1 font-sans sticky left-0 z-30">
+                                <div className="flex items-center w-fit gap-2 mb-2 py-1 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm pr-6 rounded-r-2xl font-sans sticky left-0 z-10">
                                     <button
                                         className="p-0.5 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-800 text-theme-muted transition-colors shrink-0"
                                         onClick={() => toggleGroupCollapse(group.id)}
@@ -1060,7 +1060,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                     >
                                         {/* Header Row for Group */}
                                         <div className="flex items-center bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm shadow-sm border-b border-theme-primary/20 w-fit min-w-full h-10">
-                                            <div className="w-[350px] shrink-0 font-semibold text-xs text-theme-secondary uppercase tracking-wider sticky left-0 z-40 bg-white dark:bg-neutral-950 flex items-center h-full border-r border-theme-primary/30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                                            <div className="w-[350px] shrink-0 font-semibold text-xs text-theme-secondary uppercase tracking-wider sticky left-0 z-10 bg-white dark:bg-neutral-950 flex items-center h-full border-r border-theme-primary/30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                                                 {/* Group-level checkbox area */}
                                                 <div
                                                     className="w-10 h-full shrink-0 flex items-center justify-center cursor-pointer border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30"
@@ -1143,7 +1143,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                         <div className="flex flex-col min-w-full">
                                             {items.length === 0 ? (
                                                 <div className="flex items-center h-9 border-t border-theme-primary/20 hover:bg-neutral-50 dark:hover:bg-neutral-900/40 cursor-text group/add w-fit min-w-full" onClick={() => handleAddItem(group.id)}>
-                                                    <div className="w-[350px] shrink-0 h-full flex items-center sticky left-0 bg-white dark:bg-neutral-950 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                                                    <div className="w-[350px] shrink-0 h-full flex items-center sticky left-0 bg-white dark:bg-neutral-950 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                                                         <div className="w-10 h-full shrink-0 border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30" />
                                                         <div className="flex-1 px-4 text-xs text-theme-muted transition-colors group-hover/add:text-theme-primary flex items-center">
                                                             <Plus className="w-3.5 h-3.5 mr-1" />
@@ -1173,7 +1173,7 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                                             )}
                                             {!isMyWork && items.length > 0 && (
                                                 <div className="flex items-center h-9 border-t border-theme-primary/20 hover:bg-neutral-50 dark:hover:bg-neutral-900/40 cursor-text group/add w-fit min-w-full" onClick={() => handleAddItem(group.id)}>
-                                                    <div className="w-[350px] shrink-0 h-full flex items-center sticky left-0 bg-white dark:bg-neutral-950 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                                                    <div className="w-[350px] shrink-0 h-full flex items-center sticky left-0 bg-white dark:bg-neutral-950 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
                                                         <div className="w-10 h-full shrink-0 border-r border-theme-primary/30 bg-neutral-50/50 dark:bg-neutral-900/30" />
                                                         <div className="flex-1 px-4 text-xs text-theme-muted transition-colors group-hover/add:text-theme-primary">
                                                             + Añadir elemento
