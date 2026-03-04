@@ -120,13 +120,25 @@ export async function getUnreadCountsByRoute() {
     const routeCounts: Record<string, number> = {};
     for (const notif of unreadNotifications) {
         if (notif.link) {
-            // Match exactly or start with to support subroutes if needed, 
-            // but for exact matches on sidebar we can just use the base path.
-            // Example link: '/my-absences' or '/tasks/123'
-            // We want to extract the base module path.
             const urlObj = new URL(notif.link, 'http://localhost');
-            const pathParts = urlObj.pathname.split('/');
-            const basePath = `/${pathParts[1]}`; // e.g., '/my-absences'
+            const path = urlObj.pathname;
+            let basePath = path;
+
+            // Map the link to the corresponding sidebar href
+            if (path.startsWith('/hr/absences') || path.startsWith('/my-absences')) {
+                // Determine if the user is checking my-absences or hr/absences.
+                // Usually notifications to employee are /my-absences, and to admin are /hr/absences.
+                // If it's an exact match we just use it, otherwise fall back to matching exactly.
+                basePath = path.startsWith('/hr') ? '/hr/absences' : '/my-absences';
+            } else if (path.startsWith('/control-horas')) {
+                const parts = path.split('/');
+                basePath = parts[2] ? `/control-horas/${parts[2]}` : '/control-horas/mi-hoja';
+            } else if (path.startsWith('/admin')) {
+                const parts = path.split('/');
+                basePath = parts[2] ? `/admin/${parts[2]}` : '/admin/users';
+            } else {
+                basePath = `/${path.split('/')[1]}`;
+            }
 
             routeCounts[basePath] = (routeCounts[basePath] || 0) + 1;
         }

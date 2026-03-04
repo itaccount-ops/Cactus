@@ -407,7 +407,7 @@ export async function processAbsenceRequest(
             message: action === 'APPROVED'
                 ? `Tu solicitud de ausencia ha sido aprobada por ${currentUser.name}.`
                 : `Tu solicitud de ausencia ha sido rechazada por ${currentUser.name}.${note ? ` Motivo: ${note}` : ''}`,
-            link: '/hr/absences',
+            link: '/my-absences',
             senderId: currentUser.id
         }
     });
