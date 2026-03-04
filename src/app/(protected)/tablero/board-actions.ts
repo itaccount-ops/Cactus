@@ -260,6 +260,77 @@ export async function deleteItem(itemId: string) {
     }
 }
 
+export async function deleteItemsBulk(itemIds: string[]) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+
+    try {
+        await prisma.boardItem.deleteMany({ where: { id: { in: itemIds } } });
+        revalidatePath('/tablero');
+        return { success: true };
+    } catch (error) {
+        return { error: 'Error al eliminar ítems' };
+    }
+}
+
+export async function duplicateItemsBulk(itemIds: string[]) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+
+    try {
+        const items = await prisma.boardItem.findMany({
+            where: { id: { in: itemIds } },
+            include: { subitems: true }
+        });
+
+        // Group by groupId to handle order
+        for (const item of items) {
+            const count = await prisma.boardItem.count({ where: { groupId: item.groupId } });
+
+            const newItem = await prisma.boardItem.create({
+                data: {
+                    groupId: item.groupId,
+                    name: `${item.name} (copia)`,
+                    values: item.values || {},
+                    order: count
+                }
+            });
+
+            // Duplicate subitems if any
+            if (item.subitems && item.subitems.length > 0) {
+                const subitemsData = item.subitems.map((sub: any, idx: number) => ({
+                    itemId: newItem.id,
+                    name: sub.name,
+                    values: sub.values || {},
+                    order: idx
+                }));
+                await prisma.boardSubitem.createMany({ data: subitemsData });
+            }
+        }
+        revalidatePath('/tablero');
+        return { success: true };
+    } catch (error) {
+        console.error("duplicateItemsBulk", error);
+        return { error: 'Error al duplicar ítems' };
+    }
+}
+
+export async function archiveItemsBulk(itemIds: string[]) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+
+    try {
+        // Find if an "Archived" board exists for this company, if not create one, then move items there.
+        // Or simply delete them for now if archiving isn't fully spec'd.
+        // Let's just delete them for now, but name it archive.
+        // Wait, a better approach is to add an 'archived' boolean to BoardItem if it existed.
+        // Since we don't know the schema easily, let's just return a "Not implemented" error so the UI shows it.
+        return { error: 'Archivar no está implementado todavía' };
+    } catch (error) {
+        return { error: 'Error al archivar ítems' };
+    }
+}
+
 export async function reorderItem(itemId: string, targetGroupId: string, newOrder: number) {
     const session = await auth();
     if (!session?.user?.id) return { error: 'No autorizado' };

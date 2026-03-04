@@ -12,7 +12,8 @@ import {
     XCircle, Circle, RefreshCw, Minus, Eye, AlertTriangle,
     Flag, Calendar as CalendarIcon, SlidersHorizontal,
     ChevronsDownUp, ChevronsUpDown, MessageSquare, Paperclip,
-    GripVertical, CornerDownRight, ChevronRight, FileSpreadsheet
+    GripVertical, CornerDownRight, ChevronRight, FileSpreadsheet,
+    Copy, FileDown, Archive
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -32,12 +33,17 @@ import {
     updateSubitemValue,
     deleteSubitem,
     reorderItem,
+    deleteItemsBulk,
+    duplicateItemsBulk,
+    archiveItemsBulk,
     BoardColumn,
     ColumnType
 } from '@/app/(protected)/tablero/board-actions';
 import { useRealtimePolling } from '@/hooks/useRealtimePolling';
 import { useToast } from '@/components/ui/Toast';
 import ExcelImportModal from './ExcelImportModal';
+
+// No exportToExcel logic implemented yet
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS & CONFIG
@@ -1274,6 +1280,64 @@ export default function MondayBoard({ filterProjectId = null }: { filterProjectI
                     </div>
                 </div>
             </div>
+
+            {/* Selection Action Bar */}
+            <AnimatePresence>
+                {selectedItems.size > 0 && (
+                    <motion.div
+                        initial={{ y: 100, opacity: 0, x: '-50%' }}
+                        animate={{ y: 0, opacity: 1, x: '-50%' }}
+                        exit={{ y: 100, opacity: 0, x: '-50%' }}
+                        className="fixed bottom-8 left-1/2 z-[100] flex items-center shadow-2xl rounded-xl overflow-hidden bg-[#2D3136] text-white font-sans divide-x divide-neutral-600/50"
+                    >
+                        {/* Left side: Count and label */}
+                        <div className="flex items-center gap-3 px-5 py-3 bg-[#2D3136] hover:bg-neutral-700/50 cursor-pointer transition-colors" onClick={() => setSelectedItems(new Set())}>
+                            <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[11px] font-bold leading-none">
+                                {selectedItems.size}
+                            </div>
+                            <span className="text-sm font-semibold tracking-wide shadow-sm">
+                                {selectedItems.size === 1 ? 'Elemento seleccionado' : 'Elementos seleccionados'}
+                            </span>
+                        </div>
+
+                        {/* Center: Actions */}
+                        <div className="flex items-center bg-[#2D3136]">
+                            <button
+                                onClick={async () => {
+                                    const res = await duplicateItemsBulk(Array.from(selectedItems));
+                                    if (res.error) toast.error('Error', res.error);
+                                    else { toast.success('Éxito', 'Elementos duplicados'); setSelectedItems(new Set()); loadData(true); }
+                                }}
+                                className="flex flex-col items-center justify-center gap-1 w-20 h-14 hover:bg-neutral-600/50 transition-colors group"
+                            >
+                                <Copy className="w-4 h-4 text-neutral-300 group-hover:text-white transition-colors" />
+                                <span className="text-[10px] font-medium text-neutral-400 group-hover:text-white">Duplicar</span>
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!confirm(`¿Eliminar ${selectedItems.size} elementos?`)) return;
+                                    const res = await deleteItemsBulk(Array.from(selectedItems));
+                                    if (res.error) toast.error('Error', res.error);
+                                    else { toast.success('Éxito', 'Elementos eliminados'); setSelectedItems(new Set()); loadData(true); }
+                                }}
+                                className="flex flex-col items-center justify-center gap-1 w-20 h-14 hover:bg-red-900/60 transition-colors group"
+                            >
+                                <Trash2 className="w-4 h-4 text-red-400 group-hover:text-red-300 transition-colors" />
+                                <span className="text-[10px] font-medium text-red-500 group-hover:text-red-400">Eliminar</span>
+                            </button>
+                        </div>
+
+                        {/* Right side: Close */}
+                        <button
+                            onClick={() => setSelectedItems(new Set())}
+                            className="flex items-center justify-center w-12 h-14 bg-[#2D3136] hover:bg-neutral-600/50 transition-colors"
+                            title="Limpiar selección"
+                        >
+                            <X className="w-5 h-5 text-neutral-400 hover:text-white transition-colors" />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Excel Import Modal */}
             {
