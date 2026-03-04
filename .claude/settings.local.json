@@ -25,7 +25,9 @@
       "Bash(npx prisma:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npx tsx:*)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_yWnqP41fEvAr@ep-divine-snow-airqwrce-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" POSTGRES_URL_NON_POOLING=\"postgresql://neondb_owner:npg_yWnqP41fEvAr@ep-divine-snow-airqwrce.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma:*)"
     ]
   }
 }
