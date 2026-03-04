@@ -12,7 +12,7 @@ import {
     XCircle, Circle, RefreshCw, Minus, Eye, AlertTriangle,
     Flag, Calendar as CalendarIcon, SlidersHorizontal,
     ChevronsDownUp, ChevronsUpDown, MessageSquare, Paperclip,
-    GripVertical, CornerDownRight
+    GripVertical, CornerDownRight, ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -574,28 +574,61 @@ function ItemRow({
 
             {/* Subitems rendering */}
             {subItemsOpen && !isSubitem && item.subitems && (
-                <div className="bg-neutral-50/30 dark:bg-neutral-900/10">
-                    {item.subitems.map((sub: any) => (
-                        <ItemRow
-                            key={sub.id}
-                            item={sub}
-                            columns={columns}
-                            users={users}
-                            onUpdateValue={onUpdateValue}
-                            onUpdateName={onUpdateName}
-                            onDeleteItem={onDeleteItem}
-                            isSubitem={true}
-                        />
-                    ))}
-                    {/* Add Subitem Inline */}
-                    <div className="flex flex-1 min-w-[300px] border-b border-theme-primary/20 h-9 relative items-center pl-16 opacity-50 hover:opacity-100 transition-opacity">
-                        <CornerDownRight className="w-3.5 h-3.5 text-theme-muted mr-3 shrink-0" />
-                        <button
-                            className="text-xs text-theme-muted hover:text-theme-primary"
-                            onClick={() => onCreateSubitem?.(item.id, 'Subelemento')}
-                        >
-                            + Añadir subelemento
-                        </button>
+                <div className="flex bg-neutral-50/50 dark:bg-neutral-900/20">
+                    <div className="w-[48px] shrink-0 relative">
+                        {/* Parent connection line */}
+                        <div className="absolute top-0 right-3 w-[1px] h-full bg-theme-primary/20"></div>
+                        <div className="absolute top-0 right-[4px] w-[5px] h-full bg-theme-primary/5 rounded-full mt-2 mb-2"></div>
+                    </div>
+                    <div className="flex-1 flex flex-col min-w-0 pb-3 pr-4">
+                        {/* Subitems Header */}
+                        <div className="flex items-center h-9 mt-2 mb-1 border-b border-t border-theme-primary/20 bg-neutral-100/50 dark:bg-neutral-900/50 rounded-t-lg overflow-hidden">
+                            <div className="w-[302px] shrink-0 flex items-center h-full relative border-r border-theme-primary/30">
+                                <div className="w-10 h-full shrink-0 flex items-center justify-center border-r border-theme-primary/30">
+                                    <div className="w-4 h-4 rounded border border-theme-primary/30"></div>
+                                </div>
+                                <div className="flex-1 px-4 text-xs font-semibold text-theme-secondary uppercase tracking-wider">
+                                    Subelemento
+                                </div>
+                            </div>
+                            {columns.map(col => (
+                                <div key={col.id} className="h-full border-r border-theme-primary/30 flex items-center justify-center text-xs font-semibold text-theme-secondary uppercase tracking-wider overflow-hidden" style={{ width: col.width || 150 }}>
+                                    {col.title}
+                                </div>
+                            ))}
+                            <div className="h-full px-4 flex items-center text-theme-secondary hover:bg-neutral-200 dark:hover:bg-neutral-800 cursor-pointer border-l-0">
+                                <Plus className="w-3.5 h-3.5" />
+                            </div>
+                        </div>
+
+                        {/* Subitems List */}
+                        <div className="border shadow-sm rounded-b-lg border-theme-primary/20 bg-white dark:bg-neutral-950 overflow-hidden">
+                            {item.subitems.map((sub: any) => (
+                                <ItemRow
+                                    key={sub.id}
+                                    item={sub}
+                                    columns={columns}
+                                    users={users}
+                                    onUpdateValue={onUpdateValue}
+                                    onUpdateName={onUpdateName}
+                                    onDeleteItem={onDeleteItem}
+                                    isSubitem={true}
+                                />
+                            ))}
+
+                            {/* Add Subitem Monday Style */}
+                            <div className="flex items-center w-full h-9 bg-[#00479A] hover:bg-[#003882] transition-colors cursor-pointer border-t border-theme-primary/20" onClick={() => onCreateSubitem?.(item.id, 'Subelemento')}>
+                                <div className="w-10 h-full shrink-0 flex items-center justify-center border-r border-[#ffffff20]">
+                                    <div className="w-4 h-4 rounded border border-white/30"></div>
+                                </div>
+                                <div className="flex-1 px-3">
+                                    <div className="inline-flex items-center px-3 py-0.5 text-xs text-white border border-white rounded-[4px] hover:bg-white/10 transition-colors">
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Agregar subelemento
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
