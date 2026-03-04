@@ -20,7 +20,12 @@
       "Bash(cp:*)",
       "Bash(npx eslint:*)",
       "Bash(npx vitest:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_yWnqP41fEvAr@ep-super-mountain-aixr8u93.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma:*)",
+      "Bash(npx prisma:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

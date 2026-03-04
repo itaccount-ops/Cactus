@@ -1,0 +1,18 @@
+[
+  {
+    "name": "DIVINE SNOW",
+    "users": 34,
+    "projects": 417,
+    "tickets": 967
+  },
+  {
+    "name": "LATE MOUNTAIN",
+    "error": "\nInvalid `prisma.user.count()` invocation in\nc:\\Users\\MEP\\Desktop\\cactus\\scripts\\check-counts.ts:7:41\n\n  4 async function checkDb(name: string, url: string) {\n  5     const prisma = new PrismaClient({ datasources: { db: { url } } });\n  6     try {\n→ 7         const users = await prisma.user.count(\nThe table `public.User` does not exist in the current database."
+  },
+  {
+    "name": "SUPER MOUNTAIN",
+    "users": 34,
+    "projects": 417,
+    "tickets": 967
+  }
+]
