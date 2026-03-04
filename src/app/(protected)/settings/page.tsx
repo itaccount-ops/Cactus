@@ -16,6 +16,7 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [showPassword, setShowPassword] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     // Profile form
     const [profileData, setProfileData] = useState({
@@ -263,57 +264,76 @@ export default function SettingsPage() {
                                         <div className="flex items-center gap-6 pb-6 border-b border-theme-secondary">
                                             <div className="relative group">
                                                 <div className="w-24 h-24 rounded-full overflow-hidden surface-tertiary border-4 border-theme-primary shadow-lg flex items-center justify-center">
-                                                    {(profileData as any).image ? (
+                                                    {uploadingImage ? (
+                                                        <div className="w-full h-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-800">
+                                                            <svg className="animate-spin w-8 h-8 text-olive-500" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                            </svg>
+                                                        </div>
+                                                    ) : (profileData as any).image ? (
                                                         <img src={(profileData as any).image} alt="Profile" className="w-full h-full object-cover" />
                                                     ) : (
                                                         <User size={40} className="text-theme-muted" />
                                                     )}
                                                 </div>
-                                                {isAdmin && (
-                                                    <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white">
-                                                        <Palette size={20} />
-                                                        <input
-                                                            type="file"
-                                                            className="hidden"
-                                                            accept="image/jpeg,image/png,image/webp,image/gif"
-                                                            onChange={async (e) => {
-                                                                const file = e.target.files?.[0];
-                                                                if (!file) return;
+                                                <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white">
+                                                    <Palette size={20} />
+                                                    <input
+                                                        type="file"
+                                                        className="hidden"
+                                                        accept="image/jpeg,image/png,image/webp,image/gif"
+                                                        disabled={uploadingImage}
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (!file) return;
 
-                                                                if (file.size > 2 * 1024 * 1024) {
-                                                                    setMessage({ type: 'error', text: 'La imagen no puede superar 2MB.' });
-                                                                    return;
+                                                            if (file.size > 5 * 1024 * 1024) {
+                                                                setMessage({ type: 'error', text: 'La imagen no puede superar 5MB.' });
+                                                                return;
+                                                            }
+
+                                                            setUploadingImage(true);
+                                                            try {
+                                                                const res = await fetch(`/api/upload/avatar?filename=${encodeURIComponent(file.name)}`, {
+                                                                    method: 'POST',
+                                                                    body: file,
+                                                                });
+                                                                const json = await res.json();
+                                                                if (res.ok && json.url) {
+                                                                    // API route already saved to DB — just update local state + refresh session
+                                                                    setProfileData(prev => ({ ...prev, image: json.url }));
+                                                                    await updateSession({ trigger: 'update' });
+                                                                    setMessage({ type: 'success', text: 'Foto de perfil actualizada.' });
+                                                                    setTimeout(() => setMessage(null), 3000);
+                                                                } else {
+                                                                    setMessage({ type: 'error', text: json.error || 'Error al subir imagen.' });
                                                                 }
-
-                                                                const formData = new FormData();
-                                                                formData.append('file', file);
-
-                                                                try {
-                                                                    const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                                                                    const json = await res.json();
-                                                                    if (res.ok && json.url) {
-                                                                        setProfileData(prev => ({ ...prev, image: json.url }));
-                                                                        setMessage({ type: 'success', text: 'Imagen subida. Guarda para aplicar.' });
-                                                                    } else {
-                                                                        setMessage({ type: 'error', text: json.error || 'Error al subir imagen.' });
-                                                                    }
-                                                                } catch (err) {
-                                                                    setMessage({ type: 'error', text: 'Error de conexión al subir imagen.' });
-                                                                }
-                                                            }}
-                                                        />
-                                                    </label>
-                                                )}
+                                                            } catch (err) {
+                                                                setMessage({ type: 'error', text: 'Error de conexión al subir imagen.' });
+                                                            } finally {
+                                                                setUploadingImage(false);
+                                                                e.target.value = '';
+                                                            }
+                                                        }}
+                                                    />
+                                                </label>
                                             </div>
                                             <div>
                                                 <h3 className="font-bold text-theme-primary">Foto de Perfil</h3>
                                                 <p className="text-sm text-theme-tertiary">
-                                                    {isAdmin ? 'Haz clic en la imagen para cambiarla.' : 'Contacta con un administrador para cambiar tu foto de perfil.'}
+                                                    {uploadingImage ? 'Subiendo imagen...' : 'Haz clic en la imagen para cambiarla. Máx. 5MB.'}
                                                 </p>
-                                                {isAdmin && (profileData as any).image && (
+                                                {(profileData as any).image && !uploadingImage && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setProfileData(prev => ({ ...prev, image: '' }))}
+                                                        onClick={async () => {
+                                                            setProfileData(prev => ({ ...prev, image: '' }));
+                                                            await updateUserProfile({ ...profileData, image: '' });
+                                                            await updateSession({ trigger: 'update' });
+                                                            setMessage({ type: 'success', text: 'Foto eliminada.' });
+                                                            setTimeout(() => setMessage(null), 3000);
+                                                        }}
                                                         className="mt-1 text-xs text-red-500 hover:text-red-700 underline"
                                                     >
                                                         Eliminar imagen
