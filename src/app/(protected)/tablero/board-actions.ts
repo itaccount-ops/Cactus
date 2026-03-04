@@ -524,3 +524,85 @@ export async function getMyWorkBoard() {
         return { error: 'Error al cargar Mi Trabajo' };
     }
 }
+
+/* ─── Excel Import ───────────────────────────────────────────── */
+export async function importExcelToGroup(
+    boardId: string,
+    groupName: string,
+    groupColor: string,
+    columnMappings: { excelCol: string; boardColTitle: string; boardColType: ColumnType }[],
+    nameColumnExcel: string,
+    rows: Record<string, any>[]
+) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: 'No autorizado' };
+
+    try {
+        // Build BoardColumn definitions from the selected mappings
+        const boardColumns: BoardColumn[] = columnMappings.map((m, i) => ({
+            id: m.excelCol.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + i,
+            title: m.boardColTitle,
+            type: m.boardColType,
+            width: m.boardColType === 'TEXT' ? 250 : 150,
+            order: i,
+        }));
+
+        // Count existing groups to determine order
+        const count = await prisma.boardGroup.count({ where: { boardId } });
+
+        // Create the group
+        const group = await prisma.boardGroup.create({
+            data: {
+                boardId,
+                name: groupName,
+                color: groupColor,
+                order: count,
+                columns: boardColumns as any,
+            },
+        });
+
+        // Create items from rows
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const itemName = String(row[nameColumnExcel] || `Elemento ${i + 1}`);
+
+            // Build values object mapping column IDs to cell values
+            const values: Record<string, any> = {};
+            for (const col of boardColumns) {
+                const mapping = columnMappings.find(
+                    (m) => m.excelCol.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + columnMappings.indexOf(m) === col.id
+                );
+                if (mapping) {
+                    let cellValue = row[mapping.excelCol];
+                    // Convert based on column type
+                    if (col.type === 'DATE' && cellValue) {
+                        // Try to parse date
+                        const d = new Date(cellValue);
+                        if (!isNaN(d.getTime())) {
+                            cellValue = d.toISOString().split('T')[0];
+                        }
+                    }
+                    if (col.type === 'STATUS' && cellValue) {
+                        cellValue = String(cellValue);
+                    }
+                    values[col.id] = cellValue ?? null;
+                }
+            }
+
+            await prisma.boardItem.create({
+                data: {
+                    groupId: group.id,
+                    name: itemName,
+                    values: values as any,
+                    order: i,
+                },
+            });
+        }
+
+        revalidatePath('/tablero');
+        return { success: true, groupId: group.id };
+    } catch (error) {
+        console.error('[tablero/importExcelToGroup]', error);
+        return { error: 'Error al importar Excel' };
+    }
+}
