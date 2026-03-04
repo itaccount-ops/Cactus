@@ -86,7 +86,7 @@ export async function markAllNotificationsAsRead() {
     }
 }
 
-// Obtener contador de no leídas
+// Obtener contador de no leídas global
 export async function getUnreadCount() {
     const session = await auth();
     if (!session?.user?.id) return 0;
@@ -97,6 +97,42 @@ export async function getUnreadCount() {
             isRead: false
         }
     });
+}
+
+// Obtener sumatoria de no leídas agrupadas por ruta (link)
+export async function getUnreadCountsByRoute() {
+    const session = await auth();
+    if (!session?.user?.id) return {};
+
+    const unreadNotifications = await prisma.notification.findMany({
+        where: {
+            userId: session.user.id,
+            isRead: false,
+            link: {
+                not: null
+            }
+        },
+        select: {
+            link: true
+        }
+    });
+
+    const routeCounts: Record<string, number> = {};
+    for (const notif of unreadNotifications) {
+        if (notif.link) {
+            // Match exactly or start with to support subroutes if needed, 
+            // but for exact matches on sidebar we can just use the base path.
+            // Example link: '/my-absences' or '/tasks/123'
+            // We want to extract the base module path.
+            const urlObj = new URL(notif.link, 'http://localhost');
+            const pathParts = urlObj.pathname.split('/');
+            const basePath = `/${pathParts[1]}`; // e.g., '/my-absences'
+
+            routeCounts[basePath] = (routeCounts[basePath] || 0) + 1;
+        }
+    }
+
+    return routeCounts;
 }
 
 // Eliminar notificación

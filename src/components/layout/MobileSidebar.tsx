@@ -1,18 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X, LayoutDashboard, CheckSquare, Clock, Calendar, CalendarDays, Bell, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getUnreadCount, getUnreadCountsByRoute } from '@/app/(protected)/notifications/actions';
+import { useSession } from 'next-auth/react';
 
-interface MobileSidebarProps {
-    notificationCount?: number;
-}
-
-export default function MobileSidebar({ notificationCount = 0 }: MobileSidebarProps) {
+export default function MobileSidebar() {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
+    const { data: session } = useSession();
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [routeUnreads, setRouteUnreads] = useState<Record<string, number>>({});
+
+    useEffect(() => {
+        const fetchUnread = async () => {
+            const count = await getUnreadCount();
+            setUnreadCount(count);
+            const routeCounts = await getUnreadCountsByRoute();
+            setRouteUnreads(routeCounts);
+        };
+
+        if (session?.user) {
+            fetchUnread();
+            const interval = setInterval(fetchUnread, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [session, pathname]);
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Inicio', href: '/dashboard' },
@@ -20,7 +36,7 @@ export default function MobileSidebar({ notificationCount = 0 }: MobileSidebarPr
         { icon: CalendarDays, label: 'Mis Ausencias', href: '/my-absences' },
         { icon: CheckSquare, label: 'Mis Tareas', href: '/tasks' },
         { icon: Clock, label: 'Registro Diario', href: '/hours' },
-        { icon: Bell, label: 'Notificaciones', href: '/notifications', badge: notificationCount },
+        { icon: Bell, label: 'Notificaciones', href: '/notifications' },
         { icon: Settings, label: 'Configuración', href: '/settings' },
     ];
 
@@ -101,9 +117,14 @@ export default function MobileSidebar({ notificationCount = 0 }: MobileSidebarPr
                                                         <Icon className="w-5 h-5" />
                                                         <span>{item.label}</span>
                                                     </div>
-                                                    {item.badge && item.badge > 0 && (
+                                                    {item.href === '/notifications' && unreadCount > 0 && (
                                                         <span className="px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full min-w-[20px] text-center">
-                                                            {item.badge > 99 ? '99+' : item.badge}
+                                                            {unreadCount > 99 ? '99+' : unreadCount}
+                                                        </span>
+                                                    )}
+                                                    {item.href !== '/notifications' && routeUnreads[item.href] > 0 && (
+                                                        <span className="px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full min-w-[20px] text-center">
+                                                            {routeUnreads[item.href] > 99 ? '99+' : routeUnreads[item.href]}
                                                         </span>
                                                     )}
                                                 </Link>

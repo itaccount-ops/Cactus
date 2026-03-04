@@ -37,7 +37,7 @@ export async function POST(request: Request) {
         const result = await put(
             `avatars/${userId}/avatar.${ext}`,
             fileBlob,
-            { access: 'private', addRandomSuffix: false }
+            { access: 'private', addRandomSuffix: false, allowOverwrite: true }
         );
 
         // Persist the private blob URL in preferences so the proxy can fetch it

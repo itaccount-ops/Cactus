@@ -77,9 +77,8 @@ const navItems: NavSection[] = [
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
-import { getUnreadCount } from '@/app/(protected)/notifications/actions';
+import { getUnreadCount, getUnreadCountsByRoute } from '@/app/(protected)/notifications/actions';
 import { getCurrentUser } from '@/app/(protected)/settings/actions';
-
 
 import { useSidebar } from './SidebarContext';
 import { Menu, ChevronLeft } from 'lucide-react';
@@ -89,12 +88,15 @@ export default function Sidebar() {
     const { data: session } = useSession();
     const { isCollapsed, toggleSidebar } = useSidebar();
     const [unreadCount, setUnreadCount] = useState(0);
+    const [routeUnreads, setRouteUnreads] = useState<Record<string, number>>({});
     const [userImage, setUserImage] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchUnread = async () => {
             const count = await getUnreadCount();
             setUnreadCount(count);
+            const routeCounts = await getUnreadCountsByRoute();
+            setRouteUnreads(routeCounts);
         };
 
         const fetchUserImage = async () => {
@@ -193,6 +195,15 @@ export default function Sidebar() {
                                                 } ${isCollapsed ? 'justify-center' : ''}`}
                                             title={isCollapsed ? item.label : item.desc}
                                         >
+                                            {/* Badge right dot specifically for "Notificaciones" when collapsed */}
+                                            {isCollapsed && item.href === '/notifications' && unreadCount > 0 && (
+                                                <div className="absolute right-2 top-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-neutral-950" />
+                                            )}
+
+                                            {/* Badge right dot for specific modules when collapsed */}
+                                            {isCollapsed && item.href !== '/notifications' && routeUnreads[item.href] > 0 && (
+                                                <div className="absolute right-2 top-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-neutral-950" />
+                                            )}
                                             <div className="relative flex items-center justify-center">
                                                 <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-theme-muted'} ${!isCollapsed ? 'mr-3' : ''}`} />
 
@@ -208,6 +219,12 @@ export default function Sidebar() {
                                                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ml-auto ${isActive ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600 dark:bg-red-900/30'}`}>
                                                             {unreadCount}
                                                         </span>
+                                                    )}
+                                                    {/* Badge for specific modules from route parameters */}
+                                                    {item.href !== '/notifications' && routeUnreads[item.href] > 0 && (
+                                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-neutral-950">
+                                                            {routeUnreads[item.href]}
+                                                        </div>
                                                     )}
                                                 </>
                                             )}
