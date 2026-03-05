@@ -9,7 +9,7 @@ export default function TableroPage() {
     const [boardKey, setBoardKey] = useState(0);
 
     return (
-        <div className="flex h-full overflow-hidden">
+        <div className="flex overflow-hidden" style={{ height: 'calc(100vh - 4rem)' }}>
             <ProjectSidebar
                 selectedProjectId={selectedProjectId}
                 onSelectProject={setSelectedProjectId}

@@ -113,7 +113,7 @@ export default function ProjectSidebar({ selectedProjectId, onSelectProject, onP
             )}
 
             {/* Project list */}
-            <div className={`flex-1 overflow-y-auto px-2 py-1 space-y-0.5 ${isCollapsed ? 'hidden' : ''}`}>
+            <div className={`flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-0.5 ${isCollapsed ? 'hidden' : ''}`}>
                 {loading ? (
                     <div className="flex justify-center py-8">
                         <Loader2 className="w-4 h-4 animate-spin text-theme-muted" />
