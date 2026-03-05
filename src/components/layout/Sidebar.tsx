@@ -45,11 +45,11 @@ const navItems: NavSection[] = [
     },
     {
         section: 'Control Horario', items: [
-            { label: 'Mi Hoja', href: '/control-horas/mi-hoja', icon: Calendar, desc: 'Mi hoja mensual de horas' },
+            { label: 'Mi Hoja', href: '/control-horas/mi-hoja', icon: Calendar, desc: 'Mi hoja mensual de horas', managerOnly: true },
             { label: 'Equipo', href: '/control-horas/equipo', icon: Users, desc: 'Vista mensual y anual del equipo', managerOnly: true },
             { label: 'Por Proyecto', href: '/control-horas/proyectos', icon: Briefcase, desc: 'Horas por proyecto', managerOnly: true },
             { label: 'Matriz', href: '/control-horas/matriz', icon: Grid3X3, desc: 'Proyectos × Personas', managerOnly: true },
-            { label: 'Panel Global', href: '/control-horas/global', icon: ClipboardList, desc: 'Dashboard global de horas', adminOnly: true },
+            { label: 'Aprobación Horaria', href: '/control-horas/global', icon: ClipboardList, desc: 'Gestión y aprobación de horas extras', managerOnly: true },
             { label: 'CEP', href: '/control-horas/cep', icon: DollarSign, desc: 'Control Económico Proyecto', managerOnly: true },
         ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER', 'WORKER']
     },

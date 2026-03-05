@@ -11,7 +11,7 @@ const TABS = [
         label: 'Mi Hoja',
         icon: Calendar,
         description: 'Tu control mensual',
-        roles: ['WORKER', 'MANAGER', 'ADMIN', 'SUPERADMIN']
+        roles: ['MANAGER', 'ADMIN', 'SUPERADMIN']
     },
     {
         href: '/control-horas/equipo',
@@ -36,10 +36,10 @@ const TABS = [
     },
     {
         href: '/control-horas/global',
-        label: 'Panel Global',
+        label: 'Aprobación Horaria',
         icon: ClipboardList,
-        description: 'Dashboard global de horas',
-        roles: ['ADMIN', 'SUPERADMIN']
+        description: 'Gestión y aprobación de horas extras',
+        roles: ['MANAGER', 'ADMIN', 'SUPERADMIN']
     },
     {
         href: '/control-horas/cep',
