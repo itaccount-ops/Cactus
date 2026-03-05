@@ -202,7 +202,7 @@ export async function createTimeEntry(data: z.infer<typeof TimeEntryCreateSchema
         finalHours = calculateHoursFromTime(validated.startTime, validated.endTime);
     }
 
-    // Comprehensive business validation
+    // Comprehensive business validation (now enforces 8h cap)
     const validation = await validateCreateTimeEntry({
         userId: user.id,
         projectId: validated.projectId,
@@ -216,6 +216,10 @@ export async function createTimeEntry(data: z.infer<typeof TimeEntryCreateSchema
         throw new Error(validation.errors.join('; '));
     }
 
+    // If overtime, entry must wait for manager approval
+    const isOvertime = validation.isOvertime === true;
+    const entryStatus = isOvertime ? 'SUBMITTED' : 'APPROVED';
+
     // Create entry
     const entry = await prisma.timeEntry.create({
         data: {
@@ -224,13 +228,40 @@ export async function createTimeEntry(data: z.infer<typeof TimeEntryCreateSchema
             date: new Date(validated.date),
             hours: finalHours,
             notes: validated.notes || null,
-            // Campos opcionales del schema mejorado (comentados si no existen)
-            // startTime: validated.startTime || null,
-            // endTime: validated.endTime || null,
-            // billable: validated.billable ?? true,
-            // status: 'DRAFT' as any,
-        } as any // Use 'as any' para campos opcionales
+            startTime: validated.startTime || null,
+            endTime: validated.endTime || null,
+            status: entryStatus
+        } as any
     });
+
+    // Notify managers if overtime
+    if (isOvertime) {
+        try {
+            const fullUser = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true, department: true } });
+            const managers = await prisma.user.findMany({
+                where: {
+                    OR: [{ role: 'ADMIN' }, { role: 'SUPERADMIN' }, { role: 'MANAGER', department: fullUser?.department }],
+                    id: { not: user.id }
+                },
+                select: { id: true }
+            });
+            if (managers.length > 0) {
+                const entryDate = new Date(validated.date);
+                await prisma.notification.createMany({
+                    data: managers.map(m => ({
+                        userId: m.id,
+                        type: 'SYSTEM',
+                        title: 'Horas Extras Pendientes',
+                        message: `${fullUser?.name || user.id} ha registrado ${finalHours}h extra el ${entryDate.toLocaleDateString('es-ES')}. Pendiente de aprobación.`,
+                        link: '/control-horas/global',
+                        senderId: user.id
+                    }))
+                });
+            }
+        } catch (notifErr) {
+            console.error('Error sending overtime notifications:', notifErr);
+        }
+    }
 
     await auditCrud('CREATE', 'TimeEntry', entry.id, entry);
     revalidatePath('/hours');
@@ -244,6 +275,7 @@ export async function createTimeEntry(data: z.infer<typeof TimeEntryCreateSchema
     return {
         success: true,
         entry,
+        isOvertime,
         warnings: validation.warnings
     };
 }

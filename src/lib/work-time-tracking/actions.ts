@@ -88,20 +88,34 @@ export async function createTimeEntry(input: CreateTimeEntryInput) {
         throw new Error('No se pueden agregar horas a un proyecto inactivo');
     }
 
-    // Check daily limit (máximo 24h por día)
+    // Check daily limit and approval need
     const existingEntries = await prisma.timeEntry.findMany({
         where: {
             userId: user.id,
-            date: entryDate
+            date: entryDate,
+            status: { not: 'REJECTED' } // Contamos las pendientes y aprobadas
         },
-        select: { hours: true }
+        select: { hours: true, status: true }
     });
 
     const existingHours = existingEntries.reduce((sum, e) => sum + e.hours, 0);
-    const maxDaily = 24; // Un día no tiene más de 24 horas
+    const maxDailyLimit = 8; // Límite de horas normales (las demás son extra)
+    const absoluteMaxDaily = 24;
 
-    if (existingHours + input.hours > maxDaily) {
-        throw new Error(`Las horas totales del día (${existingHours + input.hours}h) exceden el máximo de 24h`);
+    if (existingHours + input.hours > absoluteMaxDaily) {
+        throw new Error(`Las horas totales del día (${existingHours + input.hours}h) exceden el máximo de 24h.`);
+    }
+
+    let status: TimeEntryStatus = 'APPROVED';
+
+    if (existingHours >= maxDailyLimit) {
+        // Todo lo que pase de 8h va a pendiente de aprobación
+        status = 'SUBMITTED';
+    } else if (existingHours + input.hours > maxDailyLimit) {
+        // Intenta mezclar horas normales con horas extra
+        const horasPermitidasNormales = maxDailyLimit - existingHours;
+        const horasExtra = (existingHours + input.hours) - maxDailyLimit;
+        throw new Error(`Solo puedes auto-aprobar hasta ${maxDailyLimit}h diarias. Por favor, registra primero ${horasPermitidasNormales}h para completar tu jornada, y luego registra otra entrada de ${horasExtra}h para tus horas extras, que quedarán pendientes de aprobación.`);
     }
 
     const entry = await prisma.timeEntry.create({
@@ -113,7 +127,7 @@ export async function createTimeEntry(input: CreateTimeEntryInput) {
             startTime: input.startTime,
             endTime: input.endTime,
             notes: input.notes,
-            status: 'APPROVED'  // Auto-approve on creation - no approval workflow
+            status: status
         },
         include: {
             project: {
@@ -121,6 +135,34 @@ export async function createTimeEntry(input: CreateTimeEntryInput) {
             }
         }
     });
+
+    // Notify managers if extra hours are submitted
+    if (status === 'SUBMITTED') {
+        const managers = await prisma.user.findMany({
+            where: {
+                OR: [
+                    { role: 'ADMIN' },
+                    { role: 'SUPERADMIN' },
+                    { role: 'MANAGER', department: user.department }
+                ],
+                id: { not: user.id }
+            },
+            select: { id: true }
+        });
+
+        if (managers.length > 0) {
+            await prisma.notification.createMany({
+                data: managers.map(m => ({
+                    userId: m.id,
+                    type: 'SYSTEM',
+                    title: 'Horas Extras Pendientes',
+                    message: `${user.name} ha registrado ${input.hours} horas extra el ${entryDate.toLocaleDateString()}. En espera de aprobación.`,
+                    link: '/control-horas/global',
+                    senderId: user.id
+                }))
+            });
+        }
+    }
 
     // Update reporting status
     await updateWorkerReportingStatus(user.id);
@@ -151,9 +193,44 @@ export async function updateTimeEntry(
         throw new Error('No tienes permisos para editar esta entrada');
     }
 
-    // Cannot edit approved entries (unless admin)
-    if (entry.status === 'APPROVED' && user.role !== 'ADMIN' && user.role !== 'SUPERADMIN') {
-        throw new Error('No se pueden editar entradas aprobadas');
+    // Si es modificada por un admin/manager, puede saltarse validaciones y mantenerla aprobada.
+    // Si la edita el propio creador y son horas, podría superar el límite.
+    let status = entry.status;
+    const isManagerOrAdmin = user.role === 'ADMIN' || user.role === 'SUPERADMIN' || (user.role === 'MANAGER' && user.department === entry.user.department && user.id !== entry.userId);
+
+    if (!isManagerOrAdmin && input.hours !== undefined && input.hours !== entry.hours) {
+        if (entry.status !== 'DRAFT' && entry.status !== 'SUBMITTED') {
+            throw new Error('Solo puedes editar horas en estado pendiente o borrador.');
+        }
+
+        const entryDate = new Date(entry.date);
+        const existingEntries = await prisma.timeEntry.findMany({
+            where: {
+                userId: entry.userId,
+                date: entryDate,
+                id: { not: entryId },
+                status: { not: 'REJECTED' }
+            },
+            select: { hours: true }
+        });
+        const existingHours = existingEntries.reduce((sum, e) => sum + e.hours, 0);
+        const maxDailyLimit = 8;
+        const absoluteMaxDaily = 24;
+
+        if (existingHours + input.hours > absoluteMaxDaily) {
+            throw new Error(`Las horas totales del día (${existingHours + input.hours}h) exceden el máximo de 24h.`);
+        }
+
+        if (existingHours >= maxDailyLimit) {
+            status = 'SUBMITTED';
+        } else if (existingHours + input.hours > maxDailyLimit) {
+            // Intenta mezclar
+            const horasPermitidasNormales = maxDailyLimit - existingHours;
+            const horasExtra = (existingHours + input.hours) - maxDailyLimit;
+            throw new Error(`Al actualizar, la suma excede las ${maxDailyLimit}h diarias. Registra ${horasPermitidasNormales}h en esta y crea otra de ${horasExtra}h.`);
+        } else {
+            status = 'APPROVED'; // Si editó y volvió a bajar de las 8? Podríamos pasarla a approved.
+        }
     }
 
     const updated = await prisma.timeEntry.update({
@@ -164,9 +241,7 @@ export async function updateTimeEntry(
             ...(input.endTime !== undefined && { endTime: input.endTime }),
             ...(input.notes !== undefined && { notes: input.notes }),
             ...(input.projectId && { projectId: input.projectId }),
-            // Remove line 168 below:
-            // Keep status APPROVED - no approval workflow
-            status: 'APPROVED'
+            status: status
         },
         include: {
             project: {
@@ -174,6 +249,28 @@ export async function updateTimeEntry(
             }
         }
     });
+
+    if (status === 'SUBMITTED' && entry.status !== 'SUBMITTED' && !isManagerOrAdmin) {
+        const managers = await prisma.user.findMany({
+            where: {
+                OR: [{ role: 'ADMIN' }, { role: 'SUPERADMIN' }, { role: 'MANAGER', department: entry.user.department }],
+                id: { not: entry.userId }
+            },
+            select: { id: true }
+        });
+        if (managers.length > 0) {
+            await prisma.notification.createMany({
+                data: managers.map(m => ({
+                    userId: m.id,
+                    type: 'SYSTEM',
+                    title: 'Horas Extras Modificadas',
+                    message: `${user.name} ha editado una entrada de horas extra. En espera de aprobación.`,
+                    link: '/control-horas/global',
+                    senderId: user.id
+                }))
+            });
+        }
+    }
 
     revalidatePath('/hours');
     revalidatePath('/control-horas');
@@ -199,8 +296,10 @@ export async function deleteTimeEntry(entryId: string) {
     }
 
     // Cannot delete approved entries (unless admin)
-    if (entry.status === 'APPROVED' && user.role !== 'ADMIN' && user.role !== 'SUPERADMIN') {
-        throw new Error('No se pueden eliminar entradas aprobadas');
+    const isManagerOrAdmin = user.role === 'ADMIN' || user.role === 'SUPERADMIN' || (user.role === 'MANAGER' && user.department === entry.user.department && user.id !== entry.userId);
+
+    if (entry.status === 'APPROVED' && !isManagerOrAdmin) {
+        throw new Error('No se pueden eliminar entradas aprobadas definitivamente. Habla con tu supervisor.');
     }
 
     await prisma.timeEntry.delete({
@@ -349,7 +448,6 @@ export async function approveTimeEntries(entryIds: string[]) {
         throw new Error('Algunas entradas no fueron encontradas');
     }
 
-    // Check permissions for each entry
     for (const entry of entries) {
         if (!canManageUser(user, entry.userId, entry.user.department)) {
             throw new Error('No tienes permisos para aprobar algunas de las entradas');
@@ -368,9 +466,24 @@ export async function approveTimeEntries(entryIds: string[]) {
         data: {
             status: 'APPROVED',
             approvedAt: new Date(),
-            approvedById: user.id
+            approvedById: user.id,
+            rejectionReason: null
         }
     });
+
+    // Notify employees
+    for (const entry of entries) {
+        await prisma.notification.create({
+            data: {
+                userId: entry.userId,
+                type: 'SYSTEM',
+                title: 'Horas Extras Aprobadas',
+                message: `Tus ${entry.hours} horas extras del ${new Date(entry.date).toLocaleDateString()} han sido aprobadas por ${user.name}.`,
+                link: '/control-horas/mi-hoja',
+                senderId: user.id
+            }
+        });
+    }
 
     // Update stats for affected users
     const uniqueUserIds = [...new Set(entries.map(e => e.userId))];
@@ -418,6 +531,20 @@ export async function rejectTimeEntries(entryIds: string[], reason: string) {
             rejectionReason: reason
         }
     });
+
+    // Notify employees
+    for (const entry of entries) {
+        await prisma.notification.create({
+            data: {
+                userId: entry.userId,
+                type: 'SYSTEM',
+                title: 'Horas Extras Rechazadas',
+                message: `Tus horas extras del ${new Date(entry.date).toLocaleDateString()} han sido rechazadas por ${user.name}. Motivo: ${reason}`,
+                link: '/control-horas/mi-hoja',
+                senderId: user.id
+            }
+        });
+    }
 
     revalidatePath('/hours');
     revalidatePath('/control-horas');

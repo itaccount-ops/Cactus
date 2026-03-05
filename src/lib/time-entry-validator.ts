@@ -86,17 +86,11 @@ export async function validateDailyLimit(params: {
     date: Date;
     hours: number;
     excludeEntryId?: string;
-}): Promise<{ valid: boolean; error?: string; currentTotal?: number; limit?: number }> {
+}): Promise<{ valid: boolean; error?: string; currentTotal?: number; limit?: number; isOvertime?: boolean }> {
     const { userId, date, hours, excludeEntryId } = params;
 
-    // Obtener límite diario del usuario
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { dailyWorkHours: true }
-    });
-
-    const dailyLimit = user?.dailyWorkHours || 8.0;
-    const maxLimit = 24; // Un día no tiene más de 24 horas
+    const maxDailyLimit = 8; // Horas normales de jornada
+    const absoluteMaxDaily = 24; // Límite absoluto de un día
 
     // Normalizar fecha
     const dayStart = new Date(date);
@@ -104,7 +98,7 @@ export async function validateDailyLimit(params: {
     const dayEnd = new Date(date);
     dayEnd.setHours(23, 59, 59, 999);
 
-    // Calcular total de horas ya registradas ese día
+    // Calcular total de horas ya registradas ese día (excluyendo rechazadas)
     const existingEntries = await prisma.timeEntry.findMany({
         where: {
             userId,
@@ -112,6 +106,7 @@ export async function validateDailyLimit(params: {
                 gte: dayStart,
                 lte: dayEnd,
             },
+            status: { not: 'REJECTED' },
             ...(excludeEntryId ? { NOT: { id: excludeEntryId } } : {}),
         },
         select: { hours: true }
@@ -120,27 +115,39 @@ export async function validateDailyLimit(params: {
     const currentTotal = existingEntries.reduce((sum, entry) => sum + Number(entry.hours), 0);
     const newTotal = currentTotal + hours;
 
-    // El límite absoluto es 24 horas (un día completo)
-    if (newTotal > maxLimit) {
+    // Límite absoluto de 24h
+    if (newTotal > absoluteMaxDaily) {
         return {
             valid: false,
-            error: `Límite diario excedido: ${newTotal.toFixed(2)}h supera el máximo de 24h por día`,
+            error: `Las horas totales del día (${newTotal.toFixed(1)}h) exceden el máximo de 24h.`,
             currentTotal,
-            limit: maxLimit
+            limit: absoluteMaxDaily
         };
     }
 
-    // Advertencia informativa si supera la jornada normal (pero sigue siendo válido)
-    if (newTotal > dailyLimit) {
+    // Ya se han superado las 8h, esta entrada es overtime completa
+    if (currentTotal >= maxDailyLimit) {
         return {
             valid: true,
-            error: `Nota: Total de ${newTotal.toFixed(2)}h supera la jornada estándar de ${dailyLimit}h`,
+            isOvertime: true,
             currentTotal,
-            limit: maxLimit
+            limit: maxDailyLimit
         };
     }
 
-    return { valid: true, currentTotal, limit: maxLimit };
+    // Esta entrada cruzaría el límite de las 8h: forzar split
+    if (newTotal > maxDailyLimit) {
+        const allowed = maxDailyLimit - currentTotal;
+        const overtime = newTotal - maxDailyLimit;
+        return {
+            valid: false,
+            error: `No puedes registrar ${hours}h de una sola vez porque cruzarías el límite de ${maxDailyLimit}h diarias. Registra primero ${allowed.toFixed(1)}h para completar tu jornada, y luego registra ${overtime.toFixed(1)}h extra que quedarán pendientes de aprobación.`,
+            currentTotal,
+            limit: maxDailyLimit
+        };
+    }
+
+    return { valid: true, currentTotal, limit: maxDailyLimit, isOvertime: false };
 }
 
 /**
@@ -369,9 +376,10 @@ export async function validateCreateTimeEntry(params: {
     startTime?: string;
     endTime?: string;
     hours: number;
-}): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
+}): Promise<{ valid: boolean; errors: string[]; warnings: string[]; isOvertime?: boolean }> {
     const errors: string[] = [];
     const warnings: string[] = [];
+    let isOvertime = false;
 
     // Validar fecha
     const dateValidation = validateDateRange(params.date);
@@ -399,8 +407,8 @@ export async function validateCreateTimeEntry(params: {
 
     if (!limitValidation.valid) {
         errors.push(limitValidation.error!);
-    } else if (limitValidation.error) {
-        warnings.push(limitValidation.error);
+    } else {
+        isOvertime = limitValidation.isOvertime === true;
     }
 
     // Validar solapamiento si hay startTime y endTime
@@ -420,7 +428,8 @@ export async function validateCreateTimeEntry(params: {
     return {
         valid: errors.length === 0,
         errors,
-        warnings
+        warnings,
+        isOvertime
     };
 }
 

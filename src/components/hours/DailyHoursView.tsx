@@ -42,6 +42,7 @@ interface TimeEntry {
     hours: number;
     notes?: string | null;
     status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+    rejectionReason?: string | null;
     startTime?: string | null;
     endTime?: string | null;
     project: {
@@ -345,10 +346,13 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
             } else {
                 const result = await createTimeEntry({ ...payload, billable: true });
                 if (result.success) {
-                    setMessage({ type: 'success', text: '✅ Horas registradas' });
+                    const msg = (result as any).isOvertime
+                        ? '⏳ Horas extra registradas. Pendientes de aprobación por tu manager.'
+                        : '✅ Horas registradas correctamente';
+                    setMessage({ type: 'success', text: msg });
                     setShowForm(false);
                     await loadData();
-                    setTimeout(() => setMessage(null), 3000);
+                    setTimeout(() => setMessage(null), 5000);
                 } else {
                     setMessage({ type: 'error', text: 'Error al registrar horas' });
                 }
@@ -688,6 +692,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                             <span className="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-black text-sm rounded-lg border border-neutral-200 dark:border-neutral-700">
                                                 {entry.project.code}
                                             </span>
+                                            {getStatusBadge(entry.status)}
                                         </div>
 
                                         <h4 className="text-neutral-900 dark:text-neutral-100 font-bold text-lg leading-tight mb-1">
@@ -711,9 +716,16 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                                 "{entry.notes}"
                                             </div>
                                         )}
+
+                                        {entry.status === 'REJECTED' && entry.rejectionReason && (
+                                            <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-start gap-2 text-sm text-red-700 dark:text-red-400 font-medium">
+                                                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                                <span>Motivo de rechazo: {entry.rejectionReason}</span>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {!readOnly && (
+                                    {!readOnly && entry.status !== 'APPROVED' && (
                                         <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => openEditForm(entry)}
