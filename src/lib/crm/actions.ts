@@ -760,3 +760,97 @@ export async function deleteActivity(activityId: string) {
 }
 
 // force ts reload
+
+// ----- TIMELINE & ADVANCED CRM -----
+export async function getLeadTimeline(leadId: string) {
+    const user = await getAuthenticatedUser();
+    const companyId = user.companyId!;
+
+    const [activities, logs] = await Promise.all([
+        prisma.crmActivity.findMany({
+            where: { leadId, companyId },
+            include: { createdBy: { select: { name: true, image: true } } },
+            orderBy: { date: 'desc' }
+        }),
+        prisma.activityLog.findMany({
+            where: { entityType: 'LEAD', entityId: leadId, companyId },
+            include: { user: { select: { name: true, image: true } } },
+            orderBy: { createdAt: 'desc' }
+        })
+    ]);
+
+    const formattedActivities = activities.map(a => ({
+        id: a.id,
+        sourceType: 'ACTIVITY',
+        type: a.type,
+        title: a.title,
+        description: a.description,
+        date: a.date,
+        completed: a.completed,
+        userName: a.createdBy?.name,
+        userImage: a.createdBy?.image
+    }));
+
+    const formattedLogs = logs.map(l => ({
+        id: l.id,
+        sourceType: 'LOG',
+        type: 'SYSTEM',
+        title: l.action,
+        description: l.details,
+        date: l.createdAt,
+        completed: true,
+        userName: l.user?.name,
+        userImage: l.user?.image
+    }));
+
+    return [...formattedActivities, ...formattedLogs].sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
+export async function getClientTimeline(clientId: string) {
+    const session = await auth();
+    if (!session?.user) throw new Error('No autorizado');
+    const companyId = (session.user as any).companyId;
+    
+    const [activities, logs] = await Promise.all([
+        prisma.crmActivity.findMany({
+            where: { clientId, companyId },
+            include: { 
+                createdBy: { select: { name: true, image: true } },
+                lead: { select: { title: true } }
+            },
+            orderBy: { date: 'desc' }
+        }),
+        prisma.activityLog.findMany({
+            where: { entityType: 'CLIENT', entityId: clientId, companyId },
+            include: { user: { select: { name: true, image: true } } },
+            orderBy: { createdAt: 'desc' }
+        })
+    ]);
+
+    const formattedActivities = activities.map(a => ({
+        id: a.id,
+        sourceType: 'ACTIVITY',
+        type: a.type,
+        title: a.title,
+        description: a.description,
+        date: a.date,
+        completed: a.completed,
+        userName: a.createdBy?.name,
+        userImage: a.createdBy?.image,
+        leadTitle: a.lead?.title
+    }));
+
+    const formattedLogs = logs.map(l => ({
+        id: l.id,
+        sourceType: 'LOG',
+        type: 'SYSTEM',
+        title: l.action,
+        description: l.details,
+        date: l.createdAt,
+        completed: true,
+        userName: l.user?.name,
+        userImage: l.user?.image
+    }));
+
+    return [...formattedActivities, ...formattedLogs].sort((a, b) => b.date.getTime() - a.date.getTime());
+}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getClientDetail } from '@/lib/crm/actions';
 import { X, Phone, Mail, Building, Activity, FileText, CheckCircle } from 'lucide-react';
+import ClientTimeline from './ClientTimeline';
 
 interface ClientDetailPanelProps {
     clientId: string | null;
@@ -132,8 +133,8 @@ export default function ClientDetailPanel({ clientId, onClose }: ClientDetailPan
                                             <div key={proj.id} className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 p-3 rounded-lg flex justify-between items-center">
                                                 <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate pr-2">{proj.name}</p>
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${proj.status === 'COMPLETED' ? 'bg-green-100 text-green-700 border-green-200' :
-                                                        proj.status === 'ACTIVE' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                                                            'bg-neutral-100 text-neutral-700 border-neutral-200'
+                                                    proj.status === 'ACTIVE' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                        'bg-neutral-100 text-neutral-700 border-neutral-200'
                                                     } border`}>
                                                     {proj.status}
                                                 </span>
@@ -142,6 +143,15 @@ export default function ClientDetailPanel({ clientId, onClose }: ClientDetailPan
                                     </div>
                                 </div>
                             )}
+
+                            {/* Client Timeline */}
+                            <div>
+                                <h3 className="text-sm font-bold text-neutral-900 dark:text-white mb-3 flex items-center gap-2">
+                                    <Activity className="w-4 h-4 text-neutral-500" />
+                                    Historial Completo
+                                </h3>
+                                <ClientTimeline clientId={client.id} />
+                            </div>
 
                             <div className="h-6" />
 

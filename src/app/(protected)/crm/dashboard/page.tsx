@@ -12,6 +12,7 @@ import RevenueChart from '@/components/crm/RevenueChart';
 import ConversionChart from '@/components/crm/ConversionChart';
 import FunnelChart from '@/components/crm/FunnelChart';
 import DashboardSlicers from '@/components/crm/DashboardSlicers';
+import FollowUpsWidget from '@/components/crm/FollowUpsWidget';
 import { Target, DollarSign, Activity, FileCheck, Users, Briefcase } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { auth } from '@/auth';

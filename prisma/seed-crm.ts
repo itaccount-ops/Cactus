@@ -161,6 +161,7 @@ async function main() {
             clientId: lantania.id, assignedToId: bucarat.id, pipelineStageId: stageNegoc?.id,
             source: 'Relación existente',
             expectedCloseDate: new Date('2025-06-30'),
+            temperature: 'HOT', score: 85, tags: ['Industrial', 'Alta Tensión']
         },
         {
             title: 'Instrumentación y Control - EDAR Lantania Sur',
@@ -169,6 +170,7 @@ async function main() {
             clientId: lantania.id, assignedToId: enrique.id, pipelineStageId: stagePropuesta?.id,
             source: 'Licitación pública',
             expectedCloseDate: new Date('2025-07-15'),
+            temperature: 'WARM', score: 65, tags: ['I&C', 'Planta Depuradora']
         },
         // GSL
         {
@@ -178,6 +180,7 @@ async function main() {
             clientId: gsl.id, assignedToId: bucarat.id, pipelineStageId: stageNegoc?.id,
             source: 'Recomendación',
             expectedCloseDate: new Date('2025-05-31'),
+            temperature: 'HOT', score: 90, tags: ['Auditoría', 'Corto Plazo']
         },
         {
             title: 'Diseño Civil Nave Industrial GSL Alcalá',
@@ -186,6 +189,7 @@ async function main() {
             clientId: gsl.id, assignedToId: fran.id, pipelineStageId: stageCualif?.id,
             source: 'Prospección comercial',
             expectedCloseDate: new Date('2025-09-30'),
+            temperature: 'COLD', score: 40, tags: ['Obra Civil', 'Largo Plazo']
         },
         // SERVEO
         {
@@ -261,15 +265,26 @@ async function main() {
     const createdLeads: any[] = [];
     for (const leadData of leadsData) {
         const exists = await prisma.lead.findFirst({ where: { companyId: company.id, title: leadData.title } });
+
+        const dataToSave = {
+            ...leadData,
+            companyId: company.id,
+            stage: leadData.stage as any,
+            value: leadData.value as any,
+            temperature: leadData.temperature as any
+        };
+
         if (!exists) {
-            const lead = await prisma.lead.create({
-                data: { ...leadData, companyId: company.id, stage: leadData.stage as any, value: leadData.value as any }
-            });
+            const lead = await prisma.lead.create({ data: dataToSave });
             createdLeads.push(lead);
-            console.log(`✅ Lead: ${lead.title}`);
+            console.log(`✅ Lead creado: ${lead.title}`);
         } else {
-            createdLeads.push(exists);
-            console.log(`⏭️  Lead ya existía: ${exists.title}`);
+            const updatedLead = await prisma.lead.update({
+                where: { id: exists.id },
+                data: dataToSave
+            });
+            createdLeads.push(updatedLead);
+            console.log(`🔄 Lead actualizado: ${exists.title}`);
         }
     }
 

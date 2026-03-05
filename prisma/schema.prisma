@@ -176,6 +176,7 @@ model Client {
   projects     Project[]
   Quote        Quote[]
   crmActivities CrmActivity[]
+  tags         String[]        @default([])
 
   @@index([companyId])
 }
@@ -213,6 +214,9 @@ model Lead {
   source            String?
   lostReason        String?
   pipelineStageId   String?
+  score             Int       @default(0)
+  temperature       LeadTemperature @default(COLD)
+  tags              String[]        @default([])
 
   assignedTo        User?     @relation(fields: [assignedToId], references: [id])
   client            Client?   @relation(fields: [clientId], references: [id])
@@ -1288,4 +1292,11 @@ enum CrmActivityType {
   NOTE
   TASK
   WHATSAPP
+}
+
+enum LeadTemperature {
+  COLD
+  WARM
+  HOT
+
 }

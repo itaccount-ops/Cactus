@@ -5,6 +5,7 @@ import { getLeadDetail } from '@/lib/crm/actions';
 import { X, Briefcase, User, Calendar, DollarSign, Activity, Percent } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Image from 'next/image';
+import LeadTimeline from './LeadTimeline';
 
 interface LeadDetailPanelProps {
     leadId: string | null;
@@ -129,27 +130,9 @@ export default function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProp
                             <div>
                                 <h3 className="text-sm font-bold text-neutral-900 dark:text-white mb-3 flex items-center gap-2">
                                     <Calendar className="w-4 h-4 text-neutral-500" />
-                                    Últimas Actividades
+                                    Historial Completo
                                 </h3>
-                                <div className="space-y-4 relative before:absolute before:inset-0 before:ml-2.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-neutral-200 dark:before:via-neutral-700 before:to-transparent">
-                                    {lead.crmActivities?.length > 0 ? (
-                                        lead.crmActivities.slice(0, 5).map((act: any) => (
-                                            <div key={act.id} className="relative flex items-start gap-4 z-10">
-                                                <div className={`w-5 h-5 mt-0.5 rounded-full flex items-center justify-center ring-4 ring-white dark:ring-neutral-900 shrink-0 ${act.completed ? 'bg-green-500' : 'bg-amber-500'}`}>
-                                                </div>
-                                                <div className="flex-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 shadow-sm">
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <h4 className="text-sm font-bold text-neutral-900 dark:text-white">{act.title}</h4>
-                                                        <span className="text-[10px] text-neutral-500">{new Date(act.date).toLocaleDateString()}</span>
-                                                    </div>
-                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">{act.type}</p>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-sm text-neutral-500 z-10 relative pl-8">No hay actividades registradas.</p>
-                                    )}
-                                </div>
+                                <LeadTimeline leadId={lead.id} />
                             </div>
 
                             <div className="h-6" />

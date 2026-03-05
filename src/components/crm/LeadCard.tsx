@@ -102,6 +102,18 @@ export default function LeadCard({ lead, onClick }: LeadCardProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Temperature Indicator */}
+                    {lead.temperature === 'HOT' && <span title="Alta prioridad (Caliente)" className="text-[10px] text-red-500">🔥</span>}
+                    {lead.temperature === 'WARM' && <span title="Prioridad media (Templado)" className="text-[10px] text-orange-400">☀️</span>}
+                    {lead.temperature === 'COLD' && <span title="Baja prioridad (Frío)" className="text-[10px] text-blue-400">❄️</span>}
+
+                    {/* Score */}
+                    {lead.score > 0 && (
+                        <span className="text-[10px] font-bold text-neutral-500 dark:text-neutral-400" title="Lead Score">
+                            ★{lead.score}
+                        </span>
+                    )}
+
                     {pendingActivitiesCount > 0 && (
                         <div className="flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400" title={`${pendingActivitiesCount} actividades pendientes`}>
                             <CheckCircle className="w-3 h-3" />
@@ -114,6 +126,22 @@ export default function LeadCard({ lead, onClick }: LeadCardProps) {
                     </div>
                 </div>
             </div>
+
+            {/* Tags (Bottom row) */}
+            {lead.tags && lead.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                    {lead.tags.slice(0, 3).map((tag: string, index: number) => (
+                        <span key={index} className="text-[9px] font-medium bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded">
+                            {tag}
+                        </span>
+                    ))}
+                    {lead.tags.length > 3 && (
+                        <span className="text-[9px] font-medium bg-neutral-100 dark:bg-neutral-700 text-neutral-500 px-1.5 py-0.5 rounded">
+                            +{lead.tags.length - 3}
+                        </span>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
