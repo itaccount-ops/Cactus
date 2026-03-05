@@ -34,8 +34,10 @@ model Company {
   quotes       Quote[]
   taxRates     TaxRate[]
   teams        Team[]
-  users        User[]
-  boards       Board[]
+  users          User[]
+  boards         Board[]
+  crmActivities  CrmActivity[]
+  pipelineStages CrmPipelineStage[]
 
   @@index([slug])
 }
@@ -107,6 +109,7 @@ model User {
   tasks                Task[]                 @relation("TaskAssignees")
   memberOfTeams        Team[]                 @relation("TeamMembers")
   departmentMemberships UserDepartment[]
+  createdCrmActivities CrmActivity[]
 
   @@index([companyId])
   @@index([employeeCode])
@@ -172,6 +175,7 @@ model Client {
   leads        Lead[]
   projects     Project[]
   Quote        Quote[]
+  crmActivities CrmActivity[]
 
   @@index([companyId])
 }
@@ -206,15 +210,22 @@ model Lead {
   assignedToId      String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  source            String?
+  lostReason        String?
+  pipelineStageId   String?
+
   assignedTo        User?     @relation(fields: [assignedToId], references: [id])
   client            Client?   @relation(fields: [clientId], references: [id])
   ownerCompany      Company   @relation(fields: [companyId], references: [id])
   Quote             Quote[]
+  pipelineStage     CrmPipelineStage? @relation("LeadPipelineStage", fields: [pipelineStageId], references: [id])
+  crmActivities     CrmActivity[]
 
   @@index([companyId])
   @@index([clientId])
   @@index([assignedToId])
   @@index([stage])
+  @@index([pipelineStageId])
 }
 
 model TimeEntry {
@@ -1224,3 +1235,57 @@ model BoardSubitem {
   @@index([itemId])
 }
 
+// ==========================================
+// CRM MODULE
+// ==========================================
+
+model CrmActivity {
+  id          String           @id @default(cuid())
+  type        CrmActivityType
+  title       String
+  description String?          @db.Text
+  date        DateTime         @default(now())
+  dueDate     DateTime?
+  completed   Boolean          @default(false)
+  leadId      String?
+  clientId    String?
+  companyId   String
+  createdById String
+  
+  lead        Lead?            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  client      Client?          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  company     Company          @relation(fields: [companyId], references: [id])
+  createdBy   User             @relation(fields: [createdById], references: [id])
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([leadId])
+  @@index([clientId])
+  @@index([companyId])
+}
+
+model CrmPipelineStage {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  order     Int
+  color     String   @default("#6b7280")
+  isWon     Boolean  @default(false)
+  isLost    Boolean  @default(false)
+  
+  company   Company  @relation(fields: [companyId], references: [id])
+  leads     Lead[]   @relation("LeadPipelineStage")
+
+  @@index([companyId])
+  @@index([order])
+}
+
+enum CrmActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  TASK
+  WHATSAPP
+}

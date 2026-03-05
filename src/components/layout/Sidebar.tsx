@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard, Briefcase, Users, Settings,
     Clock, BarChart, CheckSquare, Calendar, CalendarDays, Bell, Activity, Shield, Building2, UserCog,
-    DollarSign, ClipboardList, Layers, Table2, Grid3X3
+    DollarSign, ClipboardList, Layers, Table2, Grid3X3, Target
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -44,6 +44,16 @@ const navItems: NavSection[] = [
         ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER', 'WORKER']
     },
     {
+        section: 'CRM', items: [
+            { label: 'Dashboard', href: '/crm/dashboard', icon: LayoutDashboard, desc: 'Panel de control comercial' },
+            { label: 'Pipeline', href: '/crm/pipeline', icon: Layers, desc: 'Embudo de ventas' },
+            { label: 'Clientes', href: '/crm/clients', icon: Users, desc: 'Gestión de clientes CRM' },
+            { label: 'Leads', href: '/crm/leads', icon: Target, desc: 'Oportunidades de negocio' },
+            { label: 'Cotizaciones', href: '/crm/quotes', icon: ClipboardList, desc: 'Presupuestos y propuestas' },
+            { label: 'Actividades', href: '/crm/activities', icon: Activity, desc: 'Historial de interacción' },
+        ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER']
+    },
+    {
         section: 'Control Horario', items: [
             { label: 'Mi Hoja', href: '/control-horas/mi-hoja', icon: Calendar, desc: 'Mi hoja mensual de horas', managerOnly: true },
             { label: 'Equipo', href: '/control-horas/equipo', icon: Users, desc: 'Vista mensual y anual del equipo', managerOnly: true },
@@ -62,6 +72,7 @@ const navItems: NavSection[] = [
     {
         section: 'Administración', items: [
             { label: 'Proyectos', href: '/admin/projects', icon: Briefcase, desc: 'Gestión de proyectos' },
+            { label: 'Clientes', href: '/admin/clients', icon: Building2, desc: 'Directorio de clientes' },
             { label: 'Usuarios', href: '/admin/users', icon: Users, desc: 'Gestión de equipo' },
             { label: 'Departamentos', href: '/admin/departments', icon: Building2, desc: 'Configuración por áreas' },
             { label: 'Equipos', href: '/admin/teams', icon: UserCog, desc: 'Organización de equipos' },

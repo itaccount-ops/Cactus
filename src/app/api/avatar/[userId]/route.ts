@@ -7,9 +7,9 @@ export const runtime = 'nodejs';
 // and streams it to the browser. Stored as /api/avatar/{userId} in the image field.
 export async function GET(
     _request: Request,
-    { params }: { params: { userId: string } }
+    { params }: { params: Promise<{ userId: string }> }
 ) {
-    const { userId } = params;
+    const { userId } = await params;
     if (!userId) {
         return NextResponse.json({ error: 'ID de usuario requerido' }, { status: 400 });
     }

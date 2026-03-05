@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+﻿import { PrismaClient } from '@prisma/client';
 
 const prodDbUrl = "postgresql://neondb_owner:npg_yWnqP41fEvAr@ep-divine-snow-airqwrce-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require";
 const localDbUrl = "postgresql://neondb_owner:npg_yWnqP41fEvAr@ep-super-mountain-aixr8u93-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require";
@@ -20,7 +20,7 @@ const localPrisma = new PrismaClient({
 });
 
 async function main() {
-    console.log('[+] Iniciando migración de datos de producción a local...');
+    console.log('[+] Iniciando migraciÃ³n de datos de producciÃ³n a local...');
 
     // 1. Clear local DB safely
     console.log('[-] Limpiando base de datos local (TRUNCATE CASCADE)...');
@@ -37,7 +37,7 @@ async function main() {
     }
 
     // 2. Fetch data from prod
-    console.log('[v] Obteniendo datos de producción...');
+    console.log('[v] Obteniendo datos de producciÃ³n...');
     const companies = await prodPrisma.company.findMany();
     const users = await prodPrisma.user.findMany();
     const clients = await prodPrisma.client.findMany();
@@ -66,7 +66,7 @@ async function main() {
     }
 
     if (users.length > 0) {
-        await localPrisma.user.createMany({ data: users, skipDuplicates: true });
+        await localPrisma.user.createMany({ data: users as any, skipDuplicates: true });
         console.log(`  - ${users.length} usuarios copiados.`);
     }
 
@@ -106,7 +106,7 @@ async function main() {
         console.log(`  - ${boardSubitems.length} sub-items de tablero copiados.`);
     }
 
-    console.log('¡Migración completada con éxito!');
+    console.log('Â¡MigraciÃ³n completada con Ã©xito!');
 }
 
 main()

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getAllProjects, createProject, updateProject, toggleProjectStatus } from './actions';
-import { getAllClients } from '@/app/(protected)/admin/clients/actions';
+import { getAdminClients } from '@/app/(protected)/admin/clients/actions';
 import { Briefcase, Plus, Edit2, Power, PowerOff, Calendar, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -24,12 +24,12 @@ function ProjectsContent() {
 
     const fetchData = async () => {
         setLoading(true);
-        const [projectsData, clientsData] = await Promise.all([
+        const [projectsData] = await Promise.all([
             getAllProjects(),
-            getAllClients()
         ]);
         setProjects(projectsData);
-        setClients(clientsData);
+        const clientsData = await getAdminClients({ limit: 100 });
+        setClients(clientsData.clients);
         setLoading(false);
     };
 
