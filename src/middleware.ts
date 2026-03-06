@@ -57,6 +57,14 @@ export default auth((req) => {
         }
     }
 
+    // TEMPORARY: Restrict CRM to SUPERADMIN only
+    if (pathname.startsWith("/crm")) {
+        if (userRole !== "SUPERADMIN") {
+            console.log(`[Middleware] Blocked ${userRole} from /crm (Temporarily hidden)`);
+            return NextResponse.redirect(new URL("/dashboard", nextUrl.origin));
+        }
+    }
+
     return NextResponse.next();
 });
 

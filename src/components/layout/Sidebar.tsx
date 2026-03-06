@@ -51,7 +51,7 @@ const navItems: NavSection[] = [
             { label: 'Leads', href: '/crm/leads', icon: Target, desc: 'Oportunidades de negocio' },
             { label: 'Cotizaciones', href: '/crm/quotes', icon: ClipboardList, desc: 'Presupuestos y propuestas' },
             { label: 'Actividades', href: '/crm/activities', icon: Activity, desc: 'Historial de interacción' },
-        ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER']
+        ], roles: ['SUPERADMIN'] // TEMPORARY: Hidden for everyone except SuperAdmin
     },
     {
         section: 'Control Horario', items: [
