@@ -8,17 +8,15 @@ interface FunnelChartProps {
 }
 
 export default function FunnelChart({ data }: FunnelChartProps) {
-    if (!data || data.length === 0) {
-        return <div className="h-64 flex items-center justify-center text-sm text-neutral-500">Sin datos de embudo</div>;
-    }
-
-    const maxValue = useMemo(() => {
-        return Math.max(...data.map(d => d.value), 1);
-    }, [data]);
+    const safeData = data || [];
 
     const maxCount = useMemo(() => {
-        return Math.max(...data.map(d => d.count), 1);
-    }, [data]);
+        return Math.max(...safeData.map(d => d.count), 1);
+    }, [safeData]);
+
+    if (safeData.length === 0) {
+        return <div className="h-64 flex items-center justify-center text-sm text-neutral-500">Sin datos de embudo</div>;
+    }
 
     // Color palette from blue -> purple -> pink -> orange -> green
     const colors = [
