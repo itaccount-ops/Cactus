@@ -71,8 +71,12 @@ model User {
   hireDate             DateTime?
   salary               Decimal?               @db.Decimal(10, 2)
   ssNumber             String?
-  vacationDays         Int                    @default(23)
-  personalDays         Int                    @default(2)
+  vacationDays                   Int     @default(23)
+  vacationModifications          Int     @default(0)
+  looseVacationDaysUsed          Int     @default(0)
+  looseVacationDaysWithoutNotice Int     @default(0)
+  childSicknessHoursBank         Float   @default(32)
+  personalDays                   Int     @default(2)
   approvedAbsences     Absence[]              @relation("ApprovedAbsences")
   absences             Absence[]
   activityLogs         ActivityLog[]
@@ -109,7 +113,9 @@ model User {
   tasks                Task[]                 @relation("TaskAssignees")
   memberOfTeams        Team[]                 @relation("TeamMembers")
   departmentMemberships UserDepartment[]
-  createdCrmActivities CrmActivity[]
+  createdCrmActivities      CrmActivity[]
+  modificationRequests      VacationModification[] @relation("UserModifications")
+  reviewedModificationReqs  VacationModification[] @relation("ReviewedModifications")
 
   @@index([companyId])
   @@index([employeeCode])
@@ -950,20 +956,69 @@ model Absence {
   startDate     DateTime      @db.Date
   endDate       DateTime      @db.Date
   totalDays     Float
-  status        AbsenceStatus @default(PENDING)
-  reason        String?
-  approvedById  String?
-  approvedAt    DateTime?
-  rejectionNote String?
+  status                  AbsenceStatus @default(PENDING)
+  reason                  String?
+  hours                   Float?
+  startTime               String?       // e.g. "09:00" — for partial-day absences
+  endTime                 String?       // e.g. "14:00" — for partial-day absences
+  isLooseDayWithoutNotice Boolean       @default(false)
+  attachmentUrl           String?
+  approvedById            String?
+  approvedAt              DateTime?
+  rejectionNote           String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  approvedBy    User?         @relation("ApprovedAbsences", fields: [approvedById], references: [id])
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy            User?                  @relation("ApprovedAbsences", fields: [approvedById], references: [id])
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vacationModifications VacationModification[]
 
   @@index([userId])
   @@index([startDate, endDate])
   @@index([status])
   @@index([type])
+}
+
+// ==========================================
+// VACATION MODIFICATION REQUESTS
+// ==========================================
+
+model VacationModification {
+  id           String                     @id @default(cuid())
+  userId       String
+  absenceId    String?                    // The original approved absence being modified
+  requestedBy  String                     // user making the request (same as userId or HR)
+  type         VacationModificationType
+  description  String
+  startDate    DateTime                   @db.Date
+  endDate      DateTime                   @db.Date
+  totalDays    Float
+  status       VacationModificationStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+
+  user       User     @relation("UserModifications", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer   User?    @relation("ReviewedModifications", fields: [reviewedById], references: [id])
+  absence    Absence? @relation(fields: [absenceId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([absenceId])
+}
+
+enum VacationModificationType {
+  CHANGE_DATES    // Request to change dates of approved absence
+  CANCEL_APPROVED // Request to cancel an already-approved absence
+  ADD_DAYS        // Request to add days to an approved period
+  REDUCE_DAYS     // Request to reduce days in an approved period
+}
+
+enum VacationModificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model PayrollRecord {
@@ -1036,6 +1091,12 @@ enum AbsenceType {
   PERSONAL
   MATERNITY
   PATERNITY
+  MARRIAGE
+  BEREAVEMENT_1ST_DEGREE
+  BEREAVEMENT_2ND_DEGREE
+  PUBLIC_DUTY
+  CHILD_SICKNESS
+  UNPAID_MONTH
   UNPAID
   OTHER
 }

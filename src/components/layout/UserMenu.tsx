@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { signOut, useSession } from 'next-auth/react';
-import { LogOut, User, ChevronDown, UserCheck, Sun, Moon, Monitor } from 'lucide-react';
+import { LogOut, User, ChevronDown, Sun, Moon, Monitor } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/providers/ThemeProvider';
 import { getCurrentUser } from '@/app/(protected)/settings/actions';
@@ -85,14 +85,6 @@ export default function UserMenu() {
                             >
                                 <User size={16} className="mr-3 text-neutral-400 dark:text-neutral-500" />
                                 Mi Perfil
-                            </Link>
-                            <Link
-                                href="/settings"
-                                className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
-                                onClick={() => setIsOpen(false)}
-                            >
-                                <UserCheck size={16} className="mr-3 text-neutral-400 dark:text-neutral-500" />
-                                Configuración
                             </Link>
                         </div>
 

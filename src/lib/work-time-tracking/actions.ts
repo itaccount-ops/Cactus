@@ -106,10 +106,10 @@ export async function createTimeEntry(input: CreateTimeEntryInput) {
         throw new Error(`Las horas totales del día (${existingHours + input.hours}h) exceden el máximo de 24h.`);
     }
 
-    let status: TimeEntryStatus = 'APPROVED';
+    let status: TimeEntryStatus = 'DRAFT';
 
     if (existingHours >= maxDailyLimit) {
-        // Todo lo que pase de 8h va a pendiente de aprobación
+        // Extra hours go to pending approval
         status = 'SUBMITTED';
     } else if (existingHours + input.hours > maxDailyLimit) {
         // Intenta mezclar horas normales con horas extra
@@ -194,42 +194,46 @@ export async function updateTimeEntry(
     }
 
     // Si es modificada por un admin/manager, puede saltarse validaciones y mantenerla aprobada.
-    // Si la edita el propio creador y son horas, podría superar el límite.
+    // Si la edita el propio creador, cambios en horas o proyecto la regresan a SUBMITTED.
     let status = entry.status;
     const isManagerOrAdmin = user.role === 'ADMIN' || user.role === 'SUPERADMIN' || (user.role === 'MANAGER' && user.department === entry.user.department && user.id !== entry.userId);
 
-    if (!isManagerOrAdmin && input.hours !== undefined && input.hours !== entry.hours) {
-        if (entry.status !== 'DRAFT' && entry.status !== 'SUBMITTED') {
-            throw new Error('Solo puedes editar horas en estado pendiente o borrador.');
-        }
+    const isChangingHoursOrProject = (input.hours !== undefined && input.hours !== entry.hours) || (input.projectId !== undefined && input.projectId !== entry.projectId);
 
-        const entryDate = new Date(entry.date);
-        const existingEntries = await prisma.timeEntry.findMany({
-            where: {
-                userId: entry.userId,
-                date: entryDate,
-                id: { not: entryId },
-                status: { not: 'REJECTED' }
-            },
-            select: { hours: true }
-        });
-        const existingHours = existingEntries.reduce((sum, e) => sum + e.hours, 0);
-        const maxDailyLimit = 8;
-        const absoluteMaxDaily = 24;
-
-        if (existingHours + input.hours > absoluteMaxDaily) {
-            throw new Error(`Las horas totales del día (${existingHours + input.hours}h) exceden el máximo de 24h.`);
-        }
-
-        if (existingHours >= maxDailyLimit) {
+    if (!isManagerOrAdmin && isChangingHoursOrProject) {
+        // If entry was manually approved or rejected, editing key fields re-queues it for approval
+        if (entry.status === 'APPROVED' || entry.status === 'REJECTED') {
             status = 'SUBMITTED';
-        } else if (existingHours + input.hours > maxDailyLimit) {
-            // Intenta mezclar
-            const horasPermitidasNormales = maxDailyLimit - existingHours;
-            const horasExtra = (existingHours + input.hours) - maxDailyLimit;
-            throw new Error(`Al actualizar, la suma excede las ${maxDailyLimit}h diarias. Registra ${horasPermitidasNormales}h en esta y crea otra de ${horasExtra}h.`);
-        } else {
-            status = 'APPROVED'; // Si editó y volvió a bajar de las 8? Podríamos pasarla a approved.
+        }
+
+        if (input.hours !== undefined && input.hours !== entry.hours) {
+            const entryDate = new Date(entry.date);
+            const existingEntries = await prisma.timeEntry.findMany({
+                where: {
+                    userId: entry.userId,
+                    date: entryDate,
+                    id: { not: entryId },
+                    status: { not: 'REJECTED' }
+                },
+                select: { hours: true }
+            });
+            const existingHours = existingEntries.reduce((sum, e) => sum + e.hours, 0);
+            const maxDailyLimit = 8;
+            const absoluteMaxDaily = 24;
+
+            if (existingHours + input.hours > absoluteMaxDaily) {
+                throw new Error(`Las horas totales del día (${existingHours + input.hours}h) exceden el máximo de 24h.`);
+            }
+
+            if (existingHours >= maxDailyLimit) {
+                status = 'SUBMITTED';
+            } else if (existingHours + input.hours > maxDailyLimit) {
+                const horasPermitidasNormales = maxDailyLimit - existingHours;
+                const horasExtra = (existingHours + input.hours) - maxDailyLimit;
+                throw new Error(`Al actualizar, la suma excede las ${maxDailyLimit}h diarias. Registra ${horasPermitidasNormales}h en esta y crea otra de ${horasExtra}h.`);
+            } else if (entry.status !== 'APPROVED' && entry.status !== 'REJECTED') {
+                status = 'DRAFT'; // Under limit, was DRAFT/SUBMITTED → stays draft
+            }
         }
     }
 

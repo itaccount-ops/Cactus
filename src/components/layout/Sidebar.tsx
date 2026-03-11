@@ -90,6 +90,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { getUnreadCount, getUnreadCountsByRoute } from '@/app/(protected)/notifications/actions';
 import { getCurrentUser } from '@/app/(protected)/settings/actions';
+import { getPendingAbsencesCount } from '@/app/(protected)/hr/actions';
 
 import { useSidebar } from './SidebarContext';
 import { Menu, ChevronLeft } from 'lucide-react';
@@ -100,6 +101,7 @@ export default function Sidebar() {
     const { isCollapsed, toggleSidebar } = useSidebar();
     const [unreadCount, setUnreadCount] = useState(0);
     const [routeUnreads, setRouteUnreads] = useState<Record<string, number>>({});
+    const [pendingAbsences, setPendingAbsences] = useState(0);
     const [userImage, setUserImage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -108,6 +110,8 @@ export default function Sidebar() {
             setUnreadCount(count);
             const routeCounts = await getUnreadCountsByRoute();
             setRouteUnreads(routeCounts);
+            const absCount = await getPendingAbsencesCount();
+            setPendingAbsences(absCount);
         };
 
         const fetchUserImage = async () => {
@@ -212,7 +216,7 @@ export default function Sidebar() {
                                             )}
 
                                             {/* Badge right dot for specific modules when collapsed */}
-                                            {isCollapsed && item.href !== '/notifications' && routeUnreads[item.href] > 0 && (
+                                            {isCollapsed && item.href !== '/notifications' && (item.href === '/hr/absences' ? pendingAbsences : routeUnreads[item.href]) > 0 && (
                                                 <div className="absolute right-2 top-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-neutral-950" />
                                             )}
                                             <div className="relative flex items-center justify-center">
@@ -232,11 +236,14 @@ export default function Sidebar() {
                                                         </span>
                                                     )}
                                                     {/* Badge for specific modules from route parameters */}
-                                                    {item.href !== '/notifications' && routeUnreads[item.href] > 0 && (
-                                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-neutral-950">
-                                                            {routeUnreads[item.href]}
-                                                        </div>
-                                                    )}
+                                                    {item.href !== '/notifications' && (() => {
+                                                        const badgeCount = item.href === '/hr/absences' ? pendingAbsences : routeUnreads[item.href];
+                                                        return badgeCount > 0 ? (
+                                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-neutral-950">
+                                                                {badgeCount}
+                                                            </div>
+                                                        ) : null;
+                                                    })()}
                                                 </>
                                             )}
                                         </Link>

@@ -35,12 +35,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 const { email, password } = parsedCredentials.data;
 
-                // Rate limit check by email
-                const rateLimitResult = authLimiter.check(`auth:${email}`);
+                // Rate limit check by email (async — works in serverless)
+                const rateLimitResult = await authLimiter.check(`auth:${email}`);
                 if (!rateLimitResult.allowed) {
                     logRateLimitBlock(`auth:${email}`, 'authLimiter');
                     console.warn(`[AUTH] Login blocked for ${email} - rate limit exceeded`);
-                    // Return null to fail auth without revealing rate limit to attacker
                     return null;
                 }
 
@@ -60,7 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 if (passwordsMatch) {
                     // Reset rate limit on successful auth
-                    authLimiter.reset(`auth:${email}`);
+                    await authLimiter.reset(`auth:${email}`);
 
                     // Log login activity for online status tracking (fire and forget)
                     prisma.activityLog.create({

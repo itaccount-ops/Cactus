@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { redirect } from 'next/navigation';
 
 /**
  * Helper para obtener información completa del usuario autenticado
@@ -8,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 export async function getAuthenticatedUser() {
     const session = await auth();
     if (!session?.user?.id) {
-        throw new Error("No autenticado");
+        redirect('/login');
     }
 
     const user = await prisma.user.findUnique({
@@ -23,7 +24,7 @@ export async function getAuthenticatedUser() {
     });
 
     if (!user) {
-        throw new Error("Usuario no encontrado");
+        redirect('/login');
     }
 
     return user;

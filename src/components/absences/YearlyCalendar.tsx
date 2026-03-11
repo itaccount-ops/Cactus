@@ -112,9 +112,21 @@ export function MonthGrid({
 
     const getAbsencesForDay = (day: number) => {
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const date = new Date(year, month - 1, day);
+        const dow = date.getDay();
+        // Weekends and holidays are not absence days — skip them even if the range spans them
+        if (dow === 0 || dow === 6) return [];
+        if (holidays.some(h => h.date === dateStr)) return [];
+        const mmdd = `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        if (['12-24', '12-31'].includes(mmdd)) return [];
+
         return absences.filter(a => {
-            const start = new Date(a.startDate).toISOString().split('T')[0];
-            const end = new Date(a.endDate).toISOString().split('T')[0];
+            const toLocal = (d: any) => {
+                const dt = new Date(d);
+                return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            };
+            const start = toLocal(a.startDate);
+            const end = toLocal(a.endDate);
             return dateStr >= start && dateStr <= end && a.status !== 'REJECTED' && a.status !== 'CANCELLED';
         });
     };
@@ -165,6 +177,9 @@ export function MonthGrid({
                     const absence = dayAbsences[0]; // Primary absence to show color
                     const holiday = getHolidayForDay(day);
                     const isWeekend = (firstDay + i) % 7 >= 5;
+                    const mmdd = `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const isSpecialNonWorking = ['12-24', '12-31'].includes(mmdd);
+                    const isNonWorkingDay = isWeekend || !!holiday || isSpecialNonWorking;
                     const isToday = new Date().getDate() === day &&
                         new Date().getMonth() + 1 === month &&
                         new Date().getFullYear() === year;
@@ -172,18 +187,19 @@ export function MonthGrid({
                     return (
                         <div
                             key={day}
-                            onClick={() => onDayClick(new Date(year, month - 1, day))}
+                            onClick={isNonWorkingDay ? undefined : () => onDayClick(new Date(year, month - 1, day))}
                             className={`
-                                aspect-square flex items-center justify-center rounded-lg cursor-pointer transition-all relative group/day hover:z-20
+                                aspect-square flex items-center justify-center rounded-lg transition-all relative group/day hover:z-20
+                                ${isNonWorkingDay ? 'cursor-default' : 'cursor-pointer'}
                                 ${isLarge ? 'text-lg h-20' : 'text-xs'}
                                 ${holiday
-                                    ? 'bg-red-500 text-white hover:brightness-95 shadow-sm'
-                                    : absence
-                                        ? `${getTypeColor(absence.type)} text-white hover:brightness-95 shadow-sm`
-                                        : isToday
-                                            ? 'bg-olive-600 text-white font-bold shadow-md'
-                                            : isWeekend
-                                                ? 'bg-neutral-50 dark:bg-neutral-800/50 text-neutral-400 dark:text-neutral-500'
+                                    ? 'bg-red-500 text-white shadow-sm'
+                                    : isWeekend || isSpecialNonWorking
+                                        ? 'bg-neutral-50 dark:bg-neutral-800/50 text-neutral-300 dark:text-neutral-600'
+                                        : absence
+                                            ? `${getTypeColor(absence.type)} text-white hover:brightness-95 shadow-sm`
+                                            : isToday
+                                                ? 'bg-olive-600 text-white font-bold shadow-md hover:brightness-95'
                                                 : 'border border-neutral-100 dark:border-neutral-700 hover:border-olive-300 dark:hover:border-olive-600 hover:shadow-md bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
                                 }
                                 ${absence && absence.status === 'PENDING' ? 'ring-2 ring-yellow-400 ring-offset-1 dark:ring-offset-neutral-900' : ''}
@@ -204,45 +220,45 @@ export function MonthGrid({
                                 <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-white rounded-full"></div>
                             )}
 
-                            {/* Rich Tooltip (Popup Style on Hover) */}
-                            {(dayAbsences.length > 0 || holiday) && (
+                            {/* Rich Tooltip (Popup Style on Hover) — only on working days with absences */}
+                            {!isNonWorkingDay && dayAbsences.length > 0 && (
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/day:block z-50 w-48 bg-white dark:bg-neutral-800 rounded-xl shadow-xl border border-neutral-200 dark:border-neutral-700 p-2 text-left">
                                     <div className="text-xs font-semibold text-neutral-900 dark:text-white mb-2 border-b border-neutral-100 dark:border-neutral-700 pb-1">
                                         {day} de {name}
                                     </div>
                                     <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                                        {holiday && (
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-[10px] shrink-0">
-                                                    🎉
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-[10px] font-medium text-neutral-900 dark:text-white truncate leading-tight">
-                                                        {holiday.name}
-                                                    </p>
-                                                    <p className="text-[9px] text-red-500 leading-tight">
-                                                        Festivo
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
                                         {dayAbsences.map((a: any, idx: number) => (
                                             <div key={idx} className="flex items-center gap-2">
-                                                <div className="w-5 h-5 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-[8px] font-bold text-neutral-600 dark:text-neutral-300 overflow-hidden shrink-0">
-                                                    {a.user?.image ? (
-                                                        <img src={a.user.image} alt="" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        a.user?.name?.substring(0, 2).toUpperCase() || 'AB'
-                                                    )}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-[10px] font-medium text-neutral-900 dark:text-white truncate leading-tight">
-                                                        {a.user?.name || 'Usuario'}
-                                                    </p>
-                                                    <p className="text-[9px] text-neutral-500 dark:text-neutral-400 leading-tight">
-                                                        {a.type}
-                                                    </p>
-                                                </div>
+                                                {a.user ? (
+                                                    <>
+                                                        <div className="w-5 h-5 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-[8px] font-bold text-neutral-600 dark:text-neutral-300 overflow-hidden shrink-0">
+                                                            {a.user.image ? (
+                                                                <img src={a.user.image} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                a.user.name?.substring(0, 2).toUpperCase() || 'AB'
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-[10px] font-medium text-neutral-900 dark:text-white truncate leading-tight">
+                                                                {a.user.name}
+                                                            </p>
+                                                            <p className="text-[9px] text-neutral-500 dark:text-neutral-400 leading-tight">
+                                                                {a.type}
+                                                            </p>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] font-medium text-neutral-900 dark:text-white leading-tight">
+                                                            {a.type}
+                                                        </p>
+                                                        {a.reason && (
+                                                            <p className="text-[9px] text-neutral-500 dark:text-neutral-400 leading-tight truncate">
+                                                                {a.reason}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>

@@ -99,6 +99,43 @@ export async function getUnreadCount() {
     });
 }
 
+/**
+ * Get unread notifications whose link starts with a given route prefix.
+ * Used by pages to surface relevant unread notifications to the user on entry.
+ */
+export async function getUnreadNotificationsForRoute(route: string) {
+    const session = await auth();
+    if (!session?.user?.id) return [];
+
+    const all = await prisma.notification.findMany({
+        where: { userId: session.user.id, isRead: false },
+        orderBy: { createdAt: 'desc' },
+    });
+    return all.filter(n => n.link?.startsWith(route));
+}
+
+/**
+ * Mark all unread notifications whose link starts with a given route as read.
+ * Called when the user navigates to that page so the sidebar badge clears.
+ */
+export async function markNotificationsAsReadForRoute(route: string) {
+    const session = await auth();
+    if (!session?.user?.id) return;
+
+    const all = await prisma.notification.findMany({
+        where: { userId: session.user.id, isRead: false },
+        select: { id: true, link: true },
+    });
+    const ids = all.filter(n => n.link?.startsWith(route)).map(n => n.id);
+    if (ids.length === 0) return;
+
+    await prisma.notification.updateMany({
+        where: { id: { in: ids } },
+        data: { isRead: true },
+    });
+    revalidatePath('/');
+}
+
 // Obtener sumatoria de no leídas agrupadas por ruta (link)
 export async function getUnreadCountsByRoute() {
     const session = await auth();

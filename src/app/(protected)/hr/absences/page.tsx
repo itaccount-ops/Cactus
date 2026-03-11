@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     CalendarDays, CheckCircle, XCircle, Clock, AlertTriangle,
-    ChevronLeft, Calendar, UserMinus, TrendingUp, X, Send
+    ChevronLeft, Calendar, UserMinus, X, Send, Pencil, Plus, Bell, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { getAllAbsences, processAbsenceRequest, getEmployeesForFilter, getAbsenceStats } from '../actions';
+import { getAllAbsences, processAbsenceRequest, getEmployeesForFilter, getAbsenceStats, hrOverrideAbsence, hrCreateAbsence, deleteAbsence, archiveAbsence } from '../actions';
+import { getUnreadNotificationsForRoute, markNotificationsAsReadForRoute } from '../../notifications/actions';
 import { useToast } from '@/components/ui/Toast';
 import AbsenceFilters, { type AbsenceFilterValues } from '@/components/hr/AbsenceFilters';
 
@@ -28,6 +29,7 @@ function AbsencesManagementContent() {
     const [employees, setEmployees] = useState<any[]>([]);
     const [stats, setStats] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<StatusTab>('PENDING');
+    const [pageNotifications, setPageNotifications] = useState<any[]>([]);
     const toast = useToast();
 
     // Rejection modal state
@@ -44,7 +46,19 @@ function AbsencesManagementContent() {
         startDate: '',
         endDate: '',
         type: '',
+        status: '',
         reason: ''
+    });
+
+    // Create absence modal state (HR)
+    const [createModal, setCreateModal] = useState(false);
+    const [createForm, setCreateForm] = useState({
+        userId: '',
+        type: 'VACATION',
+        startDate: '',
+        endDate: '',
+        reason: '',
+        status: 'APPROVED' as 'APPROVED' | 'PENDING',
     });
 
     const [processing, setProcessing] = useState<string | null>(null);
@@ -57,6 +71,7 @@ function AbsencesManagementContent() {
             startDate: new Date(absence.startDate).toISOString().split('T')[0],
             endDate: new Date(absence.endDate).toISOString().split('T')[0],
             type: absence.type,
+            status: absence.status,
             reason: absence.reason || ''
         });
     };
@@ -68,26 +83,48 @@ function AbsencesManagementContent() {
         }
         setProcessing(editModal.absence.id);
         try {
-            // Import updateAbsence dynamically or use the one from actions if imported
-            // We need to import updateAbsence at the top of the file
-            await import('../actions').then(mod => mod.updateAbsence(editModal.absence.id, {
+            await hrOverrideAbsence(editModal.absence.id, {
                 startDate: new Date(editForm.startDate),
                 endDate: new Date(editForm.endDate),
-                type: editForm.type as any,
-                reason: editForm.reason
-            }));
+                type: editForm.type,
+                status: editForm.status as any,
+                reason: editForm.reason,
+            });
             toast.success('Ausencia actualizada');
             setEditModal({ open: false, absence: null });
             await refreshData();
-        } catch (error) {
-            console.error(error);
-            toast.error('Error al actualizar la ausencia');
+        } catch (err: any) {
+            toast.error(err.message || 'Error al actualizar la ausencia');
         } finally {
             setProcessing(null);
         }
     };
 
-    // ... inside render loop ...
+    const submitCreate = async () => {
+        if (!createForm.userId || !createForm.startDate || !createForm.endDate) {
+            toast.error('Empleado y fechas son obligatorios');
+            return;
+        }
+        setProcessing('create');
+        try {
+            await hrCreateAbsence({
+                userId: createForm.userId,
+                type: createForm.type,
+                startDate: new Date(createForm.startDate),
+                endDate: new Date(createForm.endDate),
+                reason: createForm.reason || undefined,
+                status: createForm.status,
+            });
+            toast.success('Ausencia creada correctamente');
+            setCreateModal(false);
+            setCreateForm({ userId: '', type: 'VACATION', startDate: '', endDate: '', reason: '', status: 'APPROVED' });
+            await refreshData();
+        } catch (err: any) {
+            toast.error(err.message || 'Error al crear la ausencia');
+        } finally {
+            setProcessing(null);
+        }
+    };
 
 
     // Filters state
@@ -112,14 +149,19 @@ function AbsencesManagementContent() {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [allAbsences, emps, absenceStats] = await Promise.all([
+                const [allAbsences, emps, absenceStats, unreadNotifs] = await Promise.all([
                     getAllAbsences(buildFilterParams()),
                     getEmployeesForFilter(),
-                    getAbsenceStats()
+                    getAbsenceStats(),
+                    getUnreadNotificationsForRoute('/hr/absences'),
                 ]);
                 setAbsences(allAbsences);
                 setEmployees(emps);
                 setStats(absenceStats);
+                if (unreadNotifs.length > 0) {
+                    setPageNotifications(unreadNotifs);
+                    markNotificationsAsReadForRoute('/hr/absences').catch(() => {});
+                }
             } catch (error) {
                 console.error('Error fetching absences:', error);
             } finally {
@@ -244,14 +286,43 @@ function AbsencesManagementContent() {
                         </p>
                     </div>
                 </div>
-                <Link
-                    href="/hr/absences/calendar"
-                    className="px-4 py-2.5 bg-olive-600 text-white rounded-xl hover:bg-olive-700 transition-colors flex items-center gap-2 font-medium shadow-sm"
-                >
-                    <Calendar className="w-4 h-4" />
-                    Ver Calendario
-                </Link>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setCreateModal(true)}
+                        className="px-4 py-2.5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2 font-medium shadow-sm">
+                        <Plus className="w-4 h-4" />
+                        Nueva Ausencia
+                    </button>
+                    <Link
+                        href="/hr/absences/calendar"
+                        className="px-4 py-2.5 bg-olive-600 text-white rounded-xl hover:bg-olive-700 transition-colors flex items-center gap-2 font-medium shadow-sm"
+                    >
+                        <Calendar className="w-4 h-4" />
+                        Ver Calendario
+                    </Link>
+                </div>
             </div>
+
+            {/* Pending notifications banner */}
+            {pageNotifications.length > 0 && (
+                <div className="space-y-2">
+                    {pageNotifications.map((n) => (
+                        <div key={n.id} className="flex items-start gap-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl px-4 py-3">
+                            <Bell className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-200">{n.title}</p>
+                                <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-0.5">{n.message}</p>
+                            </div>
+                            <button
+                                onClick={() => setPageNotifications(prev => prev.filter(x => x.id !== n.id))}
+                                className="text-yellow-500 hover:text-yellow-700 dark:text-yellow-500 dark:hover:text-yellow-300 flex-shrink-0"
+                                aria-label="Cerrar"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* KPI Cards */}
             {stats && (
@@ -451,7 +522,12 @@ function AbsencesManagementContent() {
                                                         {getTypeName(absence.type)}
                                                     </span>
                                                     <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                                                        {formatDate(absence.startDate)} → {formatDate(absence.endDate)}
+                                                        {(() => {
+                                                            const toLocal = (d: string) => new Date(d).toLocaleDateString('en-CA');
+                                                            return toLocal(absence.startDate) === toLocal(absence.endDate)
+                                                                ? formatDate(absence.startDate)
+                                                                : `${formatDate(absence.startDate)} → ${formatDate(absence.endDate)}`;
+                                                        })()}
                                                     </span>
                                                     <span className="text-xs text-neutral-400 bg-neutral-50 dark:bg-neutral-900 px-2 py-0.5 rounded-md">
                                                         {absence.totalDays} {absence.totalDays === 1 ? 'día' : 'días'}
@@ -487,26 +563,67 @@ function AbsencesManagementContent() {
                                         <div className="flex flex-col items-end gap-3 flex-shrink-0">
                                             {getStatusBadge(absence.status)}
 
-                                            {absence.status === 'PENDING' && (
-                                                <div className="flex gap-2">
+                                            <div className="flex gap-2 flex-wrap justify-end">
+                                                {absence.status === 'PENDING' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleApprove(absence.id)}
+                                                            disabled={processing === absence.id}
+                                                            className="flex items-center gap-1.5 px-3 py-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 rounded-lg text-green-700 dark:text-green-400 transition-colors text-sm font-medium disabled:opacity-50"
+                                                        >
+                                                            <CheckCircle className="w-4 h-4" />
+                                                            Aprobar
+                                                        </button>
+                                                        <button
+                                                            onClick={() => openRejectModal(absence.id, absence.user?.name || '')}
+                                                            disabled={processing === absence.id}
+                                                            className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-lg text-red-700 dark:text-red-400 transition-colors text-sm font-medium disabled:opacity-50"
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                            Rechazar
+                                                        </button>
+                                                    </>
+                                                )}
+                                                <button
+                                                    onClick={() => handleEdit(absence)}
+                                                    disabled={processing === absence.id}
+                                                    className="flex items-center gap-1.5 px-3 py-2 bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-700 dark:hover:bg-neutral-600 rounded-lg text-neutral-600 dark:text-neutral-300 transition-colors text-sm font-medium disabled:opacity-50"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                    Editar
+                                                </button>
+                                                {absence.status !== 'PENDING' && (
                                                     <button
-                                                        onClick={() => handleApprove(absence.id)}
+                                                        onClick={async () => {
+                                                            const isHardDelete = activeTab === 'ALL';
+                                                            const confirmMsg = isHardDelete
+                                                                ? `¿Eliminar permanentemente la ausencia de ${absence.user?.name}? No se podrá recuperar.`
+                                                                : `¿Quitar ausencia de ${absence.user?.name} de esta vista? Seguirá visible en "Todas".`;
+                                                            if (!confirm(confirmMsg)) return;
+                                                            setProcessing(absence.id);
+                                                            try {
+                                                                if (isHardDelete) {
+                                                                    await deleteAbsence(absence.id);
+                                                                    toast.success('Ausencia eliminada permanentemente');
+                                                                } else {
+                                                                    await archiveAbsence(absence.id);
+                                                                    toast.success('Ausencia archivada');
+                                                                }
+                                                                await refreshData();
+                                                            } catch (err: any) {
+                                                                toast.error(err.message || 'Error al procesar');
+                                                            } finally {
+                                                                setProcessing(null);
+                                                            }
+                                                        }}
                                                         disabled={processing === absence.id}
-                                                        className="flex items-center gap-1.5 px-3 py-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 rounded-lg text-green-700 dark:text-green-400 transition-colors text-sm font-medium disabled:opacity-50"
+                                                        className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-lg text-red-600 dark:text-red-400 transition-colors text-sm font-medium disabled:opacity-50"
                                                     >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        Aprobar
+                                                        <Trash2 className="w-4 h-4" />
+                                                        {activeTab === 'ALL' ? 'Eliminar' : 'Archivar'}
                                                     </button>
-                                                    <button
-                                                        onClick={() => openRejectModal(absence.id, absence.user?.name || '')}
-                                                        disabled={processing === absence.id}
-                                                        className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-lg text-red-700 dark:text-red-400 transition-colors text-sm font-medium disabled:opacity-50"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                        Rechazar
-                                                    </button>
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </motion.div>
@@ -635,12 +752,32 @@ function AbsencesManagementContent() {
                                         className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900"
                                     >
                                         <option value="VACATION">Vacaciones</option>
-                                        <option value="SICK">Enfermedad</option>
-                                        <option value="PERSONAL">Personal</option>
+                                        <option value="PERSONAL">Asuntos Propios</option>
+                                        <option value="SICK">Baja por Enfermedad</option>
                                         <option value="MATERNITY">Maternidad</option>
                                         <option value="PATERNITY">Paternidad</option>
-                                        <option value="UNPAID">Sin sueldo</option>
+                                        <option value="MARRIAGE">Matrimonio</option>
+                                        <option value="BEREAVEMENT_1ST_DEGREE">Fallec. 1er Grado</option>
+                                        <option value="BEREAVEMENT_2ND_DEGREE">Fallec. 2º Grado</option>
+                                        <option value="PUBLIC_DUTY">Deber Público</option>
+                                        <option value="CHILD_SICKNESS">Enf. Hijos Menores</option>
+                                        <option value="UNPAID_MONTH">Permiso Sin Sueldo (1 mes)</option>
+                                        <option value="UNPAID">Sin Sueldo</option>
                                         <option value="OTHER">Otro</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Estado</label>
+                                    <select
+                                        value={editForm.status}
+                                        onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                                        className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900"
+                                    >
+                                        <option value="PENDING">Pendiente</option>
+                                        <option value="APPROVED">Aprobada</option>
+                                        <option value="REJECTED">Rechazada</option>
+                                        <option value="CANCELLED">Cancelada</option>
                                     </select>
                                 </div>
 
@@ -667,6 +804,127 @@ function AbsencesManagementContent() {
                                         className="flex-1 px-4 py-2 bg-olive-600 text-white rounded-xl hover:bg-olive-700 font-medium disabled:opacity-50"
                                     >
                                         Guardar Cambios
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Create Absence Modal (HR) */}
+            <AnimatePresence>
+                {createModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                        onClick={() => setCreateModal(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            onClick={e => e.stopPropagation()}
+                            className="bg-white dark:bg-neutral-800 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl border border-neutral-200 dark:border-neutral-700 max-h-[90vh] overflow-y-auto"
+                        >
+                            <div className="flex items-center justify-between mb-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-olive-100 dark:bg-olive-900/30 rounded-xl">
+                                        <Plus className="w-5 h-5 text-olive-600 dark:text-olive-400" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Nueva Ausencia (RRHH)</h3>
+                                </div>
+                                <button onClick={() => setCreateModal(false)}
+                                    className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition-colors">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                {/* Employee */}
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Empleado <span className="text-red-500">*</span></label>
+                                    <select value={createForm.userId}
+                                        onChange={e => setCreateForm({ ...createForm, userId: e.target.value })}
+                                        className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-olive-500 outline-none">
+                                        <option value="">— Selecciona empleado —</option>
+                                        {employees.map((emp: any) => (
+                                            <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Type */}
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Tipo</label>
+                                    <select value={createForm.type}
+                                        onChange={e => setCreateForm({ ...createForm, type: e.target.value })}
+                                        className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 focus:ring-2 focus:ring-olive-500 outline-none">
+                                        <option value="VACATION">Vacaciones</option>
+                                        <option value="PERSONAL">Asuntos Propios</option>
+                                        <option value="SICK">Baja por Enfermedad</option>
+                                        <option value="MATERNITY">Maternidad</option>
+                                        <option value="PATERNITY">Paternidad</option>
+                                        <option value="MARRIAGE">Matrimonio</option>
+                                        <option value="BEREAVEMENT_1ST_DEGREE">Fallec. 1er Grado</option>
+                                        <option value="BEREAVEMENT_2ND_DEGREE">Fallec. 2º Grado</option>
+                                        <option value="PUBLIC_DUTY">Deber Público</option>
+                                        <option value="CHILD_SICKNESS">Enf. Hijos Menores</option>
+                                        <option value="UNPAID_MONTH">Permiso Sin Sueldo (1 mes)</option>
+                                        <option value="UNPAID">Sin Sueldo</option>
+                                        <option value="OTHER">Otro</option>
+                                    </select>
+                                </div>
+
+                                {/* Dates */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Desde <span className="text-red-500">*</span></label>
+                                        <input type="date" value={createForm.startDate}
+                                            onChange={e => setCreateForm({ ...createForm, startDate: e.target.value })}
+                                            className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 focus:ring-2 focus:ring-olive-500 outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Hasta <span className="text-red-500">*</span></label>
+                                        <input type="date" value={createForm.endDate}
+                                            min={createForm.startDate}
+                                            onChange={e => setCreateForm({ ...createForm, endDate: e.target.value })}
+                                            className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 focus:ring-2 focus:ring-olive-500 outline-none" />
+                                    </div>
+                                </div>
+
+                                {/* Status */}
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Estado</label>
+                                    <select value={createForm.status}
+                                        onChange={e => setCreateForm({ ...createForm, status: e.target.value as any })}
+                                        className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 focus:ring-2 focus:ring-olive-500 outline-none">
+                                        <option value="APPROVED">Aprobada (directa)</option>
+                                        <option value="PENDING">Pendiente de aprobación</option>
+                                    </select>
+                                </div>
+
+                                {/* Reason */}
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Motivo <span className="text-neutral-400 font-normal">(opcional)</span></label>
+                                    <textarea value={createForm.reason}
+                                        onChange={e => setCreateForm({ ...createForm, reason: e.target.value })}
+                                        className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 focus:ring-2 focus:ring-olive-500 outline-none resize-none"
+                                        rows={2} placeholder="Motivo o notas internas…" />
+                                </div>
+
+                                <div className="flex gap-3 pt-1">
+                                    <button onClick={() => setCreateModal(false)}
+                                        className="flex-1 px-4 py-2.5 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors font-medium">
+                                        Cancelar
+                                    </button>
+                                    <button onClick={submitCreate}
+                                        disabled={processing !== null || !createForm.userId || !createForm.startDate || !createForm.endDate}
+                                        className="flex-1 px-4 py-2.5 bg-olive-600 text-white rounded-xl hover:bg-olive-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        {processing === 'create' && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                        Crear Ausencia
                                     </button>
                                 </div>
                             </div>

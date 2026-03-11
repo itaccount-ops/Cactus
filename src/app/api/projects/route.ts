@@ -10,15 +10,12 @@ export async function GET(request: Request) {
 
         // Rate limit check
         const identifier = getClientIdentifier(request, session?.user?.id as string);
-        const rateLimit = checkRateLimit(identifier);
+        const rateLimit = await checkRateLimit(identifier);
 
         if (!rateLimit.allowed) {
             return NextResponse.json(
                 { error: 'Too many requests. Please try again later.' },
-                {
-                    status: 429,
-                    headers: rateLimit.headers,
-                }
+                { status: 429, headers: rateLimit.headers }
             );
         }
 

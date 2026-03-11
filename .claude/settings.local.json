@@ -27,7 +27,15 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(npx tsx:*)",
-      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_yWnqP41fEvAr@ep-divine-snow-airqwrce-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" POSTGRES_URL_NON_POOLING=\"postgresql://neondb_owner:npg_yWnqP41fEvAr@ep-divine-snow-airqwrce.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma:*)"
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_yWnqP41fEvAr@ep-divine-snow-airqwrce-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" POSTGRES_URL_NON_POOLING=\"postgresql://neondb_owner:npg_yWnqP41fEvAr@ep-divine-snow-airqwrce.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma:*)",
+      "Bash(find C:\\\\Users\\\\MEP\\\\Desktop\\\\cactus\\\\src\\\\app\\\\\\(protected\\):*)",
+      "Bash(find C:\\\\Users\\\\MEP\\\\Desktop\\\\cactus\\\\src\\\\app\\\\\\(protected\\)\\\\admin:*)",
+      "Auto edit files\nAuto create files\nAuto delete files\nAuto run commands",
+      "Bash(cat:*)",
+      "Bash(python:*)",
+      "Bash(npm install:*)",
+      "Bash($env:FORCE_COLOR=\"0\":*)",
+      "Bash(taskkill:*)"
     ]
   }
 }

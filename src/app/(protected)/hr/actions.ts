@@ -2,7 +2,13 @@
 
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, unstable_cache } from 'next/cache';
+import {
+    validateAbsenceRequest,
+    countWorkingDays,
+    type AbsenceTypeKey,
+    type Holiday,
+} from '@/lib/absence-rules-engine';
 
 // Helper to convert Prisma Decimal to number for client serialization
 function serializePayrollRecord(record: any) {
@@ -41,8 +47,9 @@ export async function getEmployeesWithHRData() {
         throw new Error('No tienes permisos para ver datos de RRHH');
     }
 
-    // Get ALL employees (including inactive) - status filter is handled in UI
+    // Get ALL employees (including inactive) — scoped to same company
     const employees = await prisma.user.findMany({
+        where: { companyId: user.companyId ?? undefined },
         select: {
             id: true,
             name: true,
@@ -57,16 +64,12 @@ export async function getEmployeesWithHRData() {
             vacationDays: true,
             isActive: true,
             createdAt: true,
-            // Department memberships (multi-dept)
             departmentMemberships: {
                 select: { id: true, department: true }
             },
             isDirective: true,
-            // Count absences
             _count: {
-                select: {
-                    absences: true
-                }
+                select: { absences: true }
             }
         },
         orderBy: { name: 'asc' }
@@ -296,70 +299,217 @@ export async function getEmployeeById(userId: string) {
     };
 }
 
-// ============================================
-// ABSENCE / VACATION MANAGEMENT
-// ============================================
+// ======================================
+// HELPER: Fetch holidays for rules engine
+// ======================================
+
+/**
+ * Fetches holidays for a calendar year, cached for 1 hour.
+ * Cache is tagged per company so it can be invalidated when holidays change.
+ */
+function getCachedHolidaysForYear(year: number, companyId: string | null) {
+    const tag = `holidays:${companyId ?? 'global'}:${year}`;
+    return unstable_cache(
+        async () => {
+            const yearStart = new Date(`${year}-01-01`);
+            const yearEnd = new Date(`${year}-12-31`);
+            const rows = await prisma.holiday.findMany({
+                where: { companyId: companyId ?? null, date: { gte: yearStart, lte: yearEnd } },
+                select: { date: true },
+            });
+            return rows.map(r => ({ date: r.date.toISOString().split('T')[0] }));
+        },
+        [tag],
+        { revalidate: 3600, tags: [tag] }
+    )();
+}
+
+async function fetchHolidaysForRange(
+    start: Date,
+    end: Date,
+    companyId?: string | null
+): Promise<Holiday[]> {
+    // Collect holidays for all years spanned by the range (usually just one)
+    const startYear = start.getFullYear();
+    const endYear = end.getFullYear();
+    const results: Holiday[] = [];
+    for (let y = startYear; y <= endYear; y++) {
+        const h = await getCachedHolidaysForYear(y, companyId ?? null);
+        results.push(...h);
+    }
+    // Filter to exact range
+    const startStr = start.toISOString().split('T')[0];
+    const endStr = end.toISOString().split('T')[0];
+    return results.filter(h => h.date >= startStr && h.date <= endStr);
+}
 
 /**
  * Request an absence (vacation, sick leave, etc.)
+ * Delegates all business rule validation to the absence-rules-engine.
  */
 export async function requestAbsence(data: {
-    type: 'VACATION' | 'SICK' | 'PERSONAL' | 'MATERNITY' | 'PATERNITY' | 'UNPAID' | 'OTHER';
+    type: AbsenceTypeKey;
     startDate: Date;
     endDate: Date;
     reason?: string;
+    hours?: number;
+    startTime?: string;
+    endTime?: string;
+    attachmentUrl?: string;
+    isLateNotice?: boolean;
+    isHrOverride?: boolean;
 }) {
     const session = await auth();
     if (!session?.user?.email) throw new Error('No autorizado');
 
     const user = await prisma.user.findUnique({
-        where: { email: session.user.email }
+        where: { email: session.user.email },
+        select: {
+            id: true, name: true, companyId: true, role: true,
+            vacationDays: true, personalDays: true,
+            looseVacationDaysUsed: true, looseVacationDaysWithoutNotice: true,
+            childSicknessHoursBank: true, hireDate: true,
+        }
     });
     if (!user) throw new Error('Usuario no encontrado');
 
-    // Calculate total days (simple - not accounting for weekends)
+    // Only ADMIN/SUPERADMIN may use HR override
+    const isHrOverride = data.isHrOverride &&
+        ['SUPERADMIN', 'ADMIN'].includes(user.role);
+
     const start = new Date(data.startDate);
     const end = new Date(data.endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    const currentYear = start.getFullYear();
+    const yearStart = new Date(`${currentYear}-01-01`);
+    const yearEnd = new Date(`${currentYear}-12-31`);
 
+    // Fetch holidays for the engine (and year-wide for balance recomputation)
+    const [holidays, yearHolidays] = await Promise.all([
+        fetchHolidaysForRange(start, end, user.companyId),
+        getCachedHolidaysForYear(currentYear, user.companyId ?? null),
+    ]);
+
+    // Fetch existing absences for the year and recompute working days precisely
+    // (mirrors getVacationBalance — avoids stale totalDays values)
+    const yearAbsences = await prisma.absence.findMany({
+        where: {
+            userId: user.id,
+            status: { in: ['APPROVED', 'PENDING'] },
+            startDate: { gte: yearStart, lte: yearEnd },
+        },
+        select: { type: true, startDate: true, endDate: true },
+    });
+
+    const recount = (type: string) =>
+        yearAbsences
+            .filter(a => a.type === type)
+            .reduce((sum, a) => sum + countWorkingDays(new Date(a.startDate), new Date(a.endDate), yearHolidays), 0);
+
+    const existingVacationDays = recount('VACATION');
+    const existingPersonalDays = recount('PERSONAL');
+
+    // Run the rules engine
+    const result = validateAbsenceRequest({
+        type: data.type,
+        startDate: start,
+        endDate: end,
+        hours: data.hours,
+        isLateNotice: data.isLateNotice,
+        isHrOverride,
+        counters: {
+            vacationDays: user.vacationDays ?? 23,
+            personalDays: user.personalDays ?? 2,
+            looseVacationDaysUsed: user.looseVacationDaysUsed ?? 0,
+            looseVacationDaysWithoutNotice: user.looseVacationDaysWithoutNotice ?? 0,
+            childSicknessHoursBank: user.childSicknessHoursBank ?? 32,
+            hireDate: user.hireDate,
+        },
+        holidays,
+        existingVacationDays,
+        existingPersonalDays,
+    });
+
+    if (!result.valid) {
+        throw new Error(result.errors.join(' | '));
+    }
+
+    // Deduct child sickness hours immediately (before creating absence)
+    if (data.type === 'CHILD_SICKNESS') {
+        const hoursToDeduct = data.hours ?? result.workingDays * 8;
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { childSicknessHoursBank: { decrement: hoursToDeduct } }
+        });
+    }
+
+    // Create absence record
     const absence = await prisma.absence.create({
         data: {
             userId: user.id,
             type: data.type,
-            startDate: data.startDate,
-            endDate: data.endDate,
-            totalDays,
+            startDate: start,
+            endDate: result.finalEndDate,
+            totalDays: result.totalDays,
             reason: data.reason,
-            status: 'PENDING'
+            hours: data.type === 'CHILD_SICKNESS' ? (data.hours ?? null) : null,
+            startTime: data.startTime ?? null,
+            endTime: data.endTime ?? null,
+            isLooseDayWithoutNotice: result.isLooseDayWithoutNotice,
+            attachmentUrl: data.attachmentUrl ?? null,
+            status: 'PENDING',
         }
     });
 
-    // Notify Admins and SuperAdmins
-    const admins = await prisma.user.findMany({
-        where: {
-            role: { in: ['ADMIN', 'SUPERADMIN'] },
-            id: { not: user.id } // Don't notify self if admin
-        },
+    // Update loose day counters
+    if (result.isLooseDay) {
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                looseVacationDaysUsed: { increment: result.workingDays },
+                ...(result.isLooseDayWithoutNotice && {
+                    looseVacationDaysWithoutNotice: { increment: result.workingDays }
+                }),
+            }
+        });
+    }
+
+    // Notify managers / admins
+    const typeLabels: Record<string, string> = {
+        VACATION: 'vacaciones', SICK: 'baja por enfermedad',
+        PERSONAL: 'asuntos propios', MATERNITY: 'baja por maternidad',
+        PATERNITY: 'baja por paternidad', MARRIAGE: 'permiso por matrimonio',
+        BEREAVEMENT_1ST_DEGREE: 'permiso por fallecimiento (1er grado)',
+        BEREAVEMENT_2ND_DEGREE: 'permiso por fallecimiento (2º grado)',
+        PUBLIC_DUTY: 'deber inexcusable de carácter público',
+        CHILD_SICKNESS: 'cuidado de hijos menores',
+        UNPAID_MONTH: 'permiso sin sueldo', UNPAID: 'permiso no retribuido', OTHER: 'ausencia',
+    };
+    const typeLabel = typeLabels[data.type] ?? 'ausencia';
+
+    const notifyUsers = await prisma.user.findMany({
+        where: { role: { in: ['ADMIN', 'SUPERADMIN', 'MANAGER'] }, companyId: user.companyId ?? undefined, id: { not: user.id } },
         select: { id: true }
     });
 
-    if (admins.length > 0) {
+    if (notifyUsers.length > 0) {
         await prisma.notification.createMany({
-            data: admins.map(admin => ({
-                userId: admin.id,
-                type: 'SYSTEM',
+            data: notifyUsers.map(u => ({
+                userId: u.id,
+                type: 'SYSTEM' as const,
                 title: 'Nueva solicitud de ausencia',
-                message: `${user.name} ha solicitado ${data.type === 'VACATION' ? 'vacaciones' : 'una ausencia'} (${totalDays} días).`,
+                message: `${user.name} ha solicitado ${typeLabel} (${result.workingDays} días laborables).`,
                 link: '/hr/absences',
-                senderId: user.id
+                senderId: user.id,
             }))
         });
     }
 
     revalidatePath('/hr');
     revalidatePath('/hr/absences');
-    return absence;
+    revalidatePath('/my-absences');
+
+    // Return warnings alongside absence so UI can display them
+    return { ...absence, warnings: result.warnings };
 }
 
 /**
@@ -396,6 +546,20 @@ export async function processAbsenceRequest(
         }
     });
 
+    // When approving, cancel any other PENDING absences from the same user that overlap
+    if (action === 'APPROVED') {
+        await prisma.absence.updateMany({
+            where: {
+                userId: absence.userId,
+                status: 'PENDING',
+                id: { not: absenceId },
+                startDate: { lte: absence.endDate },
+                endDate: { gte: absence.startDate },
+            },
+            data: { status: 'CANCELLED' },
+        });
+    }
+
     // Notify the employee about the status change
     await prisma.notification.create({
         data: {
@@ -414,6 +578,7 @@ export async function processAbsenceRequest(
 
     revalidatePath('/hr');
     revalidatePath('/hr/absences');
+    revalidatePath('/my-absences');
     return absence;
 }
 
@@ -450,6 +615,7 @@ export async function cancelMyAbsence(absenceId: string) {
 
     revalidatePath('/hr');
     revalidatePath('/hr/absences');
+    revalidatePath('/my-absences');
     return updated;
 }
 
@@ -495,7 +661,7 @@ export async function getEmployeesForFilter() {
     }
 
     return prisma.user.findMany({
-        where: { isActive: true },
+        where: { isActive: true, companyId: currentUser.companyId ?? undefined },
         select: { id: true, name: true, department: true, image: true },
         orderBy: { name: 'asc' }
     });
@@ -528,17 +694,17 @@ export async function getAllAbsences(filters?: {
 
     const absences = await prisma.absence.findMany({
         where: {
+            // Always scope to current user's company
+            user: {
+                companyId: currentUser.companyId ?? undefined,
+                ...(filters?.department && { department: filters.department as any }),
+                ...(filters?.search && { name: { contains: filters.search, mode: 'insensitive' as const } }),
+            },
             ...(filters?.status && { status: filters.status }),
             ...(filters?.type && { type: filters.type as any }),
             ...(filters?.startDate && { startDate: { gte: filters.startDate } }),
             ...(filters?.endDate && { endDate: { lte: filters.endDate } }),
             ...(filters?.userIds && filters.userIds.length > 0 && { userId: { in: filters.userIds } }),
-            ...(filters?.department && {
-                user: { department: filters.department as any }
-            }),
-            ...(filters?.search && {
-                user: { name: { contains: filters.search, mode: 'insensitive' as const } }
-            }),
         },
         orderBy: { createdAt: 'desc' },
         include: {
@@ -573,85 +739,92 @@ export async function getVacationBalance(userId?: string) {
 
     const user = await prisma.user.findUnique({
         where: { id: targetUserId },
-        select: { vacationDays: true }
+        select: {
+            vacationDays: true,
+            personalDays: true,
+            looseVacationDaysUsed: true,
+            looseVacationDaysWithoutNotice: true,
+            childSicknessHoursBank: true,
+            vacationModifications: true,
+            companyId: true,
+        }
     });
 
     if (!user) throw new Error('Usuario no encontrado');
 
-    // Default to 2 personal days if field is missing in generated client
-    const personalDays = (user as any).personalDays ?? 2;
+    const personalDays = user.personalDays ?? 2;
 
     const currentYear = new Date().getFullYear();
+    const yearStart = new Date(`${currentYear}-01-01`);
+    const yearEnd = new Date(`${currentYear}-12-31`);
 
-    // ... (rest of aggregations remain the same) ...
-
-    const usedVacationDays = await prisma.absence.aggregate({
+    // Fetch all relevant absences for the year (to recompute working days precisely)
+    const yearAbsences = await prisma.absence.findMany({
         where: {
             userId: targetUserId,
-            type: 'VACATION',
-            status: 'APPROVED',
-            startDate: {
-                gte: new Date(`${currentYear}-01-01`),
-                lte: new Date(`${currentYear}-12-31`)
-            }
+            status: { in: ['APPROVED', 'PENDING'] },
+            startDate: { gte: yearStart, lte: yearEnd },
         },
-        _sum: { totalDays: true }
+        select: { type: true, status: true, startDate: true, endDate: true },
     });
 
-    const pendingVacationDays = await prisma.absence.aggregate({
-        where: {
-            userId: targetUserId,
-            type: 'VACATION',
-            status: 'PENDING',
-            startDate: {
-                gte: new Date(`${currentYear}-01-01`),
-                lte: new Date(`${currentYear}-12-31`)
-            }
-        },
-        _sum: { totalDays: true }
-    });
+    // Fetch holidays for the year to recount working days accurately
+    const yearHolidays = await getCachedHolidaysForYear(currentYear, user.companyId ?? null);
 
-    // Get personal days this year
-    const usedPersonalDays = await prisma.absence.aggregate({
-        where: {
-            userId: targetUserId,
-            type: 'PERSONAL',
-            status: 'APPROVED',
-            startDate: {
-                gte: new Date(`${currentYear}-01-01`),
-                lte: new Date(`${currentYear}-12-31`)
-            }
-        },
-        _sum: { totalDays: true }
-    });
+    // Helper: count working days from a stored absence range
+    const workingDaysOf = (a: { startDate: Date; endDate: Date }) =>
+        countWorkingDays(new Date(a.startDate), new Date(a.endDate), yearHolidays);
 
-    const pendingPersonalDays = await prisma.absence.aggregate({
-        where: {
-            userId: targetUserId,
-            type: 'PERSONAL',
-            status: 'PENDING',
-            startDate: {
-                gte: new Date(`${currentYear}-01-01`),
-                lte: new Date(`${currentYear}-12-31`)
-            }
-        },
-        _sum: { totalDays: true }
-    });
+    const usedVacation   = yearAbsences.filter(a => a.type === 'VACATION'  && a.status === 'APPROVED').reduce((s, a) => s + workingDaysOf(a), 0);
+    const pendingVacation = yearAbsences.filter(a => a.type === 'VACATION' && a.status === 'PENDING').reduce((s, a) => s + workingDaysOf(a), 0);
+    const usedPersonal   = yearAbsences.filter(a => a.type === 'PERSONAL'  && a.status === 'APPROVED').reduce((s, a) => s + workingDaysOf(a), 0);
+    const pendingPersonal = yearAbsences.filter(a => a.type === 'PERSONAL' && a.status === 'PENDING').reduce((s, a) => s + workingDaysOf(a), 0);
 
     return {
         vacation: {
             total: user.vacationDays,
-            used: usedVacationDays._sum.totalDays || 0,
-            pending: pendingVacationDays._sum.totalDays || 0,
-            available: user.vacationDays - (usedVacationDays._sum.totalDays || 0)
+            used: usedVacation,
+            pending: pendingVacation,
+            available: user.vacationDays - usedVacation - pendingVacation,
         },
         personal: {
             total: personalDays,
-            used: usedPersonalDays._sum.totalDays || 0,
-            pending: pendingPersonalDays._sum.totalDays || 0,
-            available: personalDays - (usedPersonalDays._sum.totalDays || 0)
-        }
+            used: usedPersonal,
+            pending: pendingPersonal,
+            available: personalDays - usedPersonal - pendingPersonal,
+        },
+        // Extended balance fields
+        looseVacationDaysUsed: user.looseVacationDaysUsed ?? 0,
+        looseVacationDaysWithoutNotice: user.looseVacationDaysWithoutNotice ?? 0,
+        childSicknessHoursBank: user.childSicknessHoursBank ?? 32,
+        vacationModifications: user.vacationModifications ?? 0,
     };
+}
+
+/**
+ * Lightweight count of pending absences for sidebar badge (HR roles only).
+ * Returns 0 for non-HR users or unauthenticated sessions.
+ */
+export async function getPendingAbsencesCount(): Promise<number> {
+    try {
+        const session = await auth();
+        if (!session?.user?.email) return 0;
+
+        const currentUser = await prisma.user.findUnique({
+            where: { email: session.user.email },
+            select: { role: true, companyId: true },
+        });
+        if (!currentUser || !['SUPERADMIN', 'ADMIN', 'MANAGER'].includes(currentUser.role)) return 0;
+
+        return await prisma.absence.count({
+            where: {
+                status: 'PENDING',
+                user: { companyId: currentUser.companyId ?? undefined },
+            },
+        });
+    } catch {
+        return 0;
+    }
 }
 
 /**
@@ -1416,6 +1589,35 @@ export async function deleteAbsence(absenceId: string) {
 }
 
 /**
+ * Archive an absence (set status to CANCELLED) without hard-deleting it.
+ * Used when HR removes it from APPROVED/REJECTED feeds — still visible in ALL tab.
+ */
+export async function archiveAbsence(absenceId: string) {
+    const session = await auth();
+    if (!session?.user?.email) throw new Error('No autorizado');
+
+    const currentUser = await prisma.user.findUnique({
+        where: { email: session.user.email }
+    });
+    if (!currentUser) throw new Error('Usuario no encontrado');
+    if (!['SUPERADMIN', 'ADMIN', 'MANAGER'].includes(currentUser.role)) {
+        throw new Error('No tienes permisos para archivar ausencias');
+    }
+
+    await prisma.absence.update({
+        where: { id: absenceId },
+        data: { status: 'CANCELLED' }
+    });
+
+    revalidatePath('/hr');
+    revalidatePath('/hr/absences');
+    revalidatePath('/hr/absences/calendar');
+    revalidatePath('/my-absences');
+
+    return { success: true };
+}
+
+/**
  * Delete multiple absences at once (admin only)
  */
 export async function deleteAbsences(absenceIds: string[]) {
@@ -1443,4 +1645,541 @@ export async function deleteAbsences(absenceIds: string[]) {
     revalidatePath('/my-absences');
 
     return { success: true, count: result.count };
+}
+
+/**
+ * Remove a specific calendar day from a (possibly multi-day) absence.
+ * - Single-day absence → delete entirely.
+ * - Day is the start → advance startDate by 1 calendar day.
+ * - Day is the end → retreat endDate by 1 calendar day.
+ * - Day is in the middle → split into two absences.
+ */
+export async function hrRemoveDayFromAbsence(absenceId: string, dateStr: string) {
+    const session = await auth();
+    if (!session?.user?.email) throw new Error('No autorizado');
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser) throw new Error('Usuario no encontrado');
+    if (!['SUPERADMIN', 'ADMIN', 'MANAGER'].includes(currentUser.role)) {
+        throw new Error('No tienes permisos para modificar ausencias');
+    }
+
+    const absence = await prisma.absence.findUnique({ where: { id: absenceId } });
+    if (!absence) throw new Error('Ausencia no encontrada');
+
+    const absStart = absence.startDate.toISOString().split('T')[0];
+    const absEnd = absence.endDate.toISOString().split('T')[0];
+
+    const holidays = await fetchHolidaysForRange(absence.startDate, absence.endDate, currentUser.companyId);
+
+    if (absStart === absEnd) {
+        // Single-day → archive (CANCELLED) so it stays as history in ALL tab
+        await prisma.absence.update({ where: { id: absenceId }, data: { status: 'CANCELLED' } });
+    } else if (dateStr <= absStart) {
+        // Remove from start
+        const newStart = new Date(absence.startDate);
+        newStart.setDate(newStart.getDate() + 1);
+        const newTotal = countWorkingDays(newStart, absence.endDate, holidays);
+        await prisma.absence.update({ where: { id: absenceId }, data: { startDate: newStart, totalDays: newTotal } });
+    } else if (dateStr >= absEnd) {
+        // Remove from end
+        const newEnd = new Date(absence.endDate);
+        newEnd.setDate(newEnd.getDate() - 1);
+        const newTotal = countWorkingDays(absence.startDate, newEnd, holidays);
+        await prisma.absence.update({ where: { id: absenceId }, data: { endDate: newEnd, totalDays: newTotal } });
+    } else {
+        // Middle → split into two
+        const removedDate = new Date(dateStr + 'T12:00:00');
+        const part1End = new Date(removedDate);
+        part1End.setDate(part1End.getDate() - 1);
+        const part2Start = new Date(removedDate);
+        part2Start.setDate(part2Start.getDate() + 1);
+
+        const part1Days = countWorkingDays(absence.startDate, part1End, holidays);
+        const part2Days = countWorkingDays(part2Start, absence.endDate, holidays);
+
+        await prisma.absence.update({
+            where: { id: absenceId },
+            data: { endDate: part1End, totalDays: part1Days }
+        });
+        await prisma.absence.create({
+            data: {
+                userId: absence.userId,
+                type: absence.type,
+                startDate: part2Start,
+                endDate: absence.endDate,
+                totalDays: part2Days,
+                reason: absence.reason,
+                status: absence.status,
+                startTime: absence.startTime,
+                endTime: absence.endTime,
+                attachmentUrl: absence.attachmentUrl,
+            }
+        });
+    }
+
+    revalidatePath('/hr');
+    revalidatePath('/hr/absences');
+    revalidatePath('/hr/absences/calendar');
+    revalidatePath('/my-absences');
+    return { success: true };
+}
+
+// ============================================
+// VACATION MODIFICATION REQUESTS
+// ============================================
+
+/**
+ * Employee requests a modification to an already-approved absence.
+ * Unlimited submissions per user; HR reviews each.
+ */
+export async function requestVacationModification(data: {
+    absenceId?: string;
+    type: 'CHANGE_DATES' | 'CANCEL_APPROVED' | 'ADD_DAYS' | 'REDUCE_DAYS';
+    description: string;
+    startDate: Date;
+    endDate: Date;
+    totalDays: number;
+}) {
+    const session = await auth();
+    if (!session?.user?.email) throw new Error('No autorizado');
+
+    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!user) throw new Error('Usuario no encontrado');
+
+    // If modifying a specific absence, verify ownership
+    if (data.absenceId) {
+        const absence = await prisma.absence.findUnique({ where: { id: data.absenceId } });
+        if (!absence) throw new Error('Ausencia no encontrada');
+        if (absence.userId !== user.id && !['SUPERADMIN', 'ADMIN'].includes(user.role)) {
+            throw new Error('No puedes modificar ausencias de otro empleado');
+        }
+    }
+
+    const mod = await (prisma as any).vacationModification.create({
+        data: {
+            userId: user.id,
+            absenceId: data.absenceId ?? null,
+            requestedBy: user.id,
+            type: data.type,
+            description: data.description,
+            startDate: new Date(data.startDate),
+            endDate: new Date(data.endDate),
+            totalDays: data.totalDays,
+            status: 'PENDING',
+        }
+    });
+
+    // Increment the user's modification counter
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { vacationModifications: { increment: 1 } }
+    });
+
+    // Notify HR/ADMIN
+    const hrUsers = await prisma.user.findMany({
+        where: { role: { in: ['ADMIN', 'SUPERADMIN'] }, companyId: user.companyId ?? undefined, id: { not: user.id } },
+        select: { id: true }
+    });
+    if (hrUsers.length > 0) {
+        await prisma.notification.createMany({
+            data: hrUsers.map(u => ({
+                userId: u.id,
+                type: 'SYSTEM' as const,
+                title: 'Solicitud de modificación de ausencia',
+                message: `${user.name} ha solicitado una modificación de ausencia.`,
+                link: '/hr/absences',
+                senderId: user.id,
+            }))
+        });
+    }
+
+    revalidatePath('/hr');
+    revalidatePath('/hr/absences');
+    revalidatePath('/my-absences');
+    return mod;
+}
+
+/**
+ * HR approves or rejects a vacation modification request.
+ */
+export async function processVacationModification(
+    modId: string,
+    action: 'APPROVED' | 'REJECTED',
+    note?: string
+) {
+    const session = await auth();
+    if (!session?.user?.email) throw new Error('No autorizado');
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser) throw new Error('Usuario no encontrado');
+
+    if (!['SUPERADMIN', 'ADMIN', 'MANAGER'].includes(currentUser.role)) {
+        throw new Error('No tienes permisos para procesar modificaciones');
+    }
+
+    const mod = await (prisma as any).vacationModification.update({
+        where: { id: modId },
+        data: {
+            status: action,
+            reviewedById: currentUser.id,
+            reviewedAt: new Date(),
+            reviewNote: note ?? null,
+        },
+        include: { user: { select: { id: true, name: true } } }
+    });
+
+    // If this is a date-swap approval, cascade the effects
+    if (action === 'APPROVED' && mod.type === 'CHANGE_DATES' && mod.absenceId) {
+        const swapMatch = (mod.description as string).match(/^SWAP:(\[.*?\])/);
+        if (swapMatch) {
+            let swapIds: string[] = [];
+            try { swapIds = JSON.parse(swapMatch[1]); } catch { /* ignore */ }
+            if (swapIds.length > 0) {
+                // Cancel the old absences
+                await prisma.absence.updateMany({
+                    where: { id: { in: swapIds }, userId: mod.userId },
+                    data: { status: 'CANCELLED' }
+                });
+            }
+            // Approve the new absence
+            await prisma.absence.update({
+                where: { id: mod.absenceId },
+                data: { status: 'APPROVED', approvedById: currentUser.id, approvedAt: new Date() }
+            });
+        }
+    }
+
+    // Notify employee
+    await prisma.notification.create({
+        data: {
+            userId: mod.userId,
+            type: 'SYSTEM',
+            title: action === 'APPROVED' ? 'Modificación aprobada' : 'Modificación rechazada',
+            message: action === 'APPROVED'
+                ? `Tu solicitud de modificación ha sido aprobada por ${currentUser.name}.`
+                : `Tu solicitud de modificación ha sido rechazada por ${currentUser.name}.${note ? ` Motivo: ${note}` : ''}`,
+            link: '/my-absences',
+            senderId: currentUser.id,
+        }
+    });
+
+    revalidatePath('/hr');
+    revalidatePath('/hr/absences');
+    revalidatePath('/my-absences');
+    return mod;
+}
+
+/**
+ * Get all pending vacation modification requests (for HR dashboard).
+ */
+export async function getVacationModifications(status?: 'PENDING' | 'APPROVED' | 'REJECTED') {
+    const session = await auth();
+    if (!session?.user?.email) throw new Error('No autorizado');
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser) throw new Error('Usuario no encontrado');
+
+    if (!['SUPERADMIN', 'ADMIN', 'MANAGER'].includes(currentUser.role)) {
+        throw new Error('No tienes permisos para ver modificaciones');
+    }
+
+    return (prisma as any).vacationModification.findMany({
+        where: {
+            ...(status && { status }),
+            user: { companyId: currentUser.companyId ?? undefined }
+        },
+        include: {
+            user: { select: { id: true, name: true, image: true, department: true } },
+            reviewer: { select: { name: true } },
+            absence: { select: { id: true, type: true, startDate: true, endDate: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+    });
+}
+
+/**
+ * HR manual override: directly update an absence without going through
+ * the normal request flow.
+ */
+export async function hrOverrideAbsence(
+    absenceId: string,
+    updates: {
+        startDate?: Date;
+        endDate?: Date;
+        totalDays?: number;
+        type?: string;
+        status?: 'APPROVED' | 'PENDING' | 'REJECTED' | 'CANCELLED';
+        reason?: string;
+    }
+) {
+    const session = await auth();
+    if (!session?.user?.email) throw new Error('No autorizado');
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser) throw new Error('Usuario no encontrado');
+
+    if (!['SUPERADMIN', 'ADMIN'].includes(currentUser.role)) {
+        throw new Error('Solo administradores pueden modificar ausencias directamente');
+    }
+
+    const absence = await prisma.absence.findUnique({ where: { id: absenceId } });
+    if (!absence) throw new Error('Ausencia no encontrada');
+
+    const newStart = updates.startDate ? new Date(updates.startDate) : absence.startDate;
+    const newEnd   = updates.endDate   ? new Date(updates.endDate)   : absence.endDate;
+
+    // Cancel other PENDING/APPROVED records for the same user that overlap the new dates
+    await prisma.absence.updateMany({
+        where: {
+            userId: absence.userId,
+            status: { in: ['PENDING', 'APPROVED'] },
+            id: { not: absenceId },
+            startDate: { lte: newEnd },
+            endDate: { gte: newStart },
+        },
+        data: { status: 'CANCELLED' },
+    });
+
+    const updated = await prisma.absence.update({
+        where: { id: absenceId },
+        data: {
+            ...(updates.startDate && { startDate: newStart }),
+            ...(updates.endDate && { endDate: newEnd }),
+            ...(updates.totalDays !== undefined && { totalDays: updates.totalDays }),
+            ...(updates.type && { type: updates.type as any }),
+            ...(updates.status && { status: updates.status }),
+            ...(updates.reason !== undefined && { reason: updates.reason }),
+            approvedById: currentUser.id,
+            approvedAt: new Date(),
+        }
+    });
+
+    revalidatePath('/hr');
+    revalidatePath('/hr/absences');
+    revalidatePath('/my-absences');
+    return updated;
+}
+
+/**
+ * Get the calling user's future APPROVED or PENDING absences.
+ * Used to display options for a date-swap request.
+ */
+export async function getMyFutureAbsences() {
+    const session = await auth();
+    if (!session?.user?.email) throw new Error('No autorizado');
+
+    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!user) throw new Error('Usuario no encontrado');
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return prisma.absence.findMany({
+        where: {
+            userId: user.id,
+            status: { in: ['APPROVED', 'PENDING'] },
+            startDate: { gte: today },
+        },
+        orderBy: { startDate: 'asc' },
+    });
+}
+
+/**
+ * User requests a date swap: new vacation/personal days in exchange for
+ * cancelling existing future absences. Creates the new absence (PENDING)
+ * and a VacationModification (CHANGE_DATES) that HR must approve.
+ * On approval, the swapped-out absences are cancelled automatically.
+ *
+ * Description format: "SWAP:[\"id1\",\"id2\"]\n<user description>"
+ */
+export async function requestAbsenceSwap(data: {
+    type: 'VACATION' | 'PERSONAL';
+    newStartDate: Date;
+    newEndDate: Date;
+    reason?: string;
+    attachmentUrl?: string;
+    swapAbsenceIds: string[];
+}) {
+    const session = await auth();
+    if (!session?.user?.email) throw new Error('No autorizado');
+
+    const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, name: true, companyId: true, role: true }
+    });
+    if (!user) throw new Error('Usuario no encontrado');
+
+    if (data.swapAbsenceIds.length === 0) {
+        throw new Error('Debes seleccionar al menos una ausencia para intercambiar');
+    }
+
+    // Verify the swapped absences belong to this user and are still future
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const swapAbsences = await prisma.absence.findMany({
+        where: {
+            id: { in: data.swapAbsenceIds },
+            userId: user.id,
+            status: { in: ['APPROVED', 'PENDING'] },
+            startDate: { gte: today },
+        }
+    });
+    if (swapAbsences.length !== data.swapAbsenceIds.length) {
+        throw new Error('Algunas ausencias seleccionadas no son válidas para el intercambio');
+    }
+
+    const start = new Date(data.newStartDate);
+    const end = new Date(data.newEndDate);
+    const holidays = await fetchHolidaysForRange(start, end, user.companyId);
+    const workingDays = countWorkingDays(start, end, holidays);
+
+    // Create the new absence (PENDING, balance override — HR decides)
+    const newAbsence = await prisma.absence.create({
+        data: {
+            userId: user.id,
+            type: data.type,
+            startDate: start,
+            endDate: end,
+            totalDays: workingDays,
+            reason: data.reason ?? null,
+            attachmentUrl: data.attachmentUrl ?? null,
+            status: 'PENDING',
+        }
+    });
+
+    // Create the modification request linking swap IDs in the description
+    const swapMeta = `SWAP:${JSON.stringify(data.swapAbsenceIds)}`;
+    const description = data.reason
+        ? `${swapMeta}\n${data.reason}`
+        : `${swapMeta}\nSolicitud de cambio de fechas de vacaciones`;
+
+    await (prisma as any).vacationModification.create({
+        data: {
+            userId: user.id,
+            absenceId: newAbsence.id,
+            requestedBy: user.id,
+            type: 'CHANGE_DATES',
+            description,
+            startDate: start,
+            endDate: end,
+            totalDays: workingDays,
+            status: 'PENDING',
+        }
+    });
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { vacationModifications: { increment: 1 } }
+    });
+
+    // Notify HR
+    const hrUsers = await prisma.user.findMany({
+        where: { role: { in: ['ADMIN', 'SUPERADMIN'] }, companyId: user.companyId ?? undefined, id: { not: user.id } },
+        select: { id: true }
+    });
+    if (hrUsers.length > 0) {
+        await prisma.notification.createMany({
+            data: hrUsers.map(u => ({
+                userId: u.id,
+                type: 'SYSTEM' as const,
+                title: 'Solicitud de cambio de fechas',
+                message: `${user.name} solicita cambiar ${swapAbsences.length} día(s) de vacaciones por nuevas fechas.`,
+                link: '/hr/absences',
+                senderId: user.id,
+            }))
+        });
+    }
+
+    revalidatePath('/hr');
+    revalidatePath('/hr/absences');
+    revalidatePath('/my-absences');
+    return newAbsence;
+}
+
+/**
+ * HR creates an absence for any employee directly (bypasses rules engine).
+ */
+export async function hrCreateAbsence(data: {
+    userId: string;
+    type: string;
+    startDate: Date;
+    endDate: Date;
+    totalDays?: number;
+    hours?: number;
+    startTime?: string;
+    endTime?: string;
+    reason?: string;
+    status: 'APPROVED' | 'PENDING' | 'REJECTED';
+    attachmentUrl?: string;
+}) {
+    const session = await auth();
+    if (!session?.user?.email) throw new Error('No autorizado');
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser) throw new Error('Usuario no encontrado');
+
+    if (!['SUPERADMIN', 'ADMIN'].includes(currentUser.role)) {
+        throw new Error('Solo administradores pueden crear ausencias directamente');
+    }
+
+    // Verify the target user belongs to the same company
+    const targetUser = await prisma.user.findUnique({
+        where: { id: data.userId },
+        select: { id: true, name: true, companyId: true }
+    });
+    if (!targetUser) throw new Error('Empleado no encontrado');
+    if (targetUser.companyId !== currentUser.companyId) {
+        throw new Error('No puedes gestionar empleados de otra empresa');
+    }
+
+    const start = new Date(data.startDate);
+    const end = new Date(data.endDate);
+    const holidays = await fetchHolidaysForRange(start, end, currentUser.companyId);
+    const workingDays = countWorkingDays(start, end, holidays);
+
+    // Cancel any existing PENDING/APPROVED absences for this user that overlap the new dates
+    await prisma.absence.updateMany({
+        where: {
+            userId: data.userId,
+            status: { in: ['PENDING', 'APPROVED'] },
+            startDate: { lte: end },
+            endDate: { gte: start },
+        },
+        data: { status: 'CANCELLED' },
+    });
+
+    const absence = await prisma.absence.create({
+        data: {
+            userId: data.userId,
+            type: data.type as any,
+            startDate: start,
+            endDate: end,
+            totalDays: data.totalDays ?? workingDays,
+            hours: data.hours ?? null,
+            startTime: data.startTime ?? null,
+            endTime: data.endTime ?? null,
+            reason: data.reason ?? null,
+            attachmentUrl: data.attachmentUrl ?? null,
+            status: data.status,
+            approvedById: data.status === 'APPROVED' ? currentUser.id : null,
+            approvedAt: data.status === 'APPROVED' ? new Date() : null,
+        }
+    });
+
+    // Notify the employee
+    await prisma.notification.create({
+        data: {
+            userId: data.userId,
+            type: 'SYSTEM',
+            title: 'Ausencia registrada por RRHH',
+            message: `RRHH ha registrado una ausencia en tu nombre (${start.toLocaleDateString('es-ES')} – ${end.toLocaleDateString('es-ES')}).`,
+            link: '/my-absences',
+            senderId: currentUser.id,
+        }
+    });
+
+    revalidatePath('/hr');
+    revalidatePath('/hr/absences');
+    revalidatePath('/my-absences');
+    return absence;
 }

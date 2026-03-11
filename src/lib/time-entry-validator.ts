@@ -22,11 +22,11 @@ export async function validateNoOverlap(params: {
 }): Promise<{ valid: boolean; error?: string; conflictingEntry?: any }> {
     const { userId, date, startTime, endTime, excludeEntryId } = params;
 
-    // Normalizar fecha al inicio del día
+    // Normalizar fecha al inicio del día (UTC para coincidir con @db.Date)
     const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
+    dayStart.setUTCHours(0, 0, 0, 0);
     const dayEnd = new Date(date);
-    dayEnd.setHours(23, 59, 59, 999);
+    dayEnd.setUTCHours(23, 59, 59, 999);
 
     // Obtener todas las entradas del usuario para ese día
     const existingEntries = await prisma.timeEntry.findMany({
@@ -92,11 +92,11 @@ export async function validateDailyLimit(params: {
     const maxDailyLimit = 8; // Horas normales de jornada
     const absoluteMaxDaily = 24; // Límite absoluto de un día
 
-    // Normalizar fecha
+    // Normalizar fecha (UTC para coincidir con @db.Date)
     const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
+    dayStart.setUTCHours(0, 0, 0, 0);
     const dayEnd = new Date(date);
-    dayEnd.setHours(23, 59, 59, 999);
+    dayEnd.setUTCHours(23, 59, 59, 999);
 
     // Calcular total de horas ya registradas ese día (excluyendo rechazadas)
     const existingEntries = await prisma.timeEntry.findMany({

@@ -120,7 +120,7 @@ export default function Header() {
                                         {unreadCount > 0 && (
                                             <button
                                                 onClick={handleMarkAllAsRead}
-                                                className="text-xs text-olive-600 hover:text-olive-700 font-bold"
+                                                className="text-xs text-olive-600 dark:text-olive-400 hover:text-olive-700 dark:hover:text-olive-300 font-bold"
                                             >
                                                 Marcar todas como leídas
                                             </button>
@@ -138,7 +138,7 @@ export default function Header() {
                                                 <button
                                                     key={notif.id}
                                                     onClick={() => handleNotificationClick(notif)}
-                                                    className={`w-full p-4 text-left hover:bg-neutral-50 transition-all border-b border-neutral-100 ${!notif.isRead ? 'bg-olive-50/30' : ''
+                                                    className={`w-full p-4 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all border-b border-neutral-100 dark:border-neutral-800 ${!notif.isRead ? 'bg-olive-50/30 dark:bg-olive-900/10' : ''
                                                         }`}
                                                 >
                                                     <div className="flex items-start space-x-3">
@@ -146,13 +146,13 @@ export default function Header() {
                                                             {getNotificationIcon(notif)}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className={`text-sm font-bold ${!notif.isRead ? 'text-neutral-900' : 'text-neutral-600'}`}>
+                                                            <p className={`text-sm font-bold ${!notif.isRead ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400'}`}>
                                                                 {notif.title}
                                                             </p>
-                                                            <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
+                                                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2">
                                                                 {notif.message}
                                                             </p>
-                                                            <p className="text-xs text-neutral-400 mt-1">
+                                                            <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
                                                                 {new Date(notif.createdAt).toLocaleString('es-ES', {
                                                                     day: 'numeric',
                                                                     month: 'short',
@@ -162,7 +162,7 @@ export default function Header() {
                                                             </p>
                                                         </div>
                                                         {!notif.isRead && (
-                                                            <div className="w-2 h-2 bg-olive-600 rounded-full flex-shrink-0 mt-1"></div>
+                                                            <div className="w-2 h-2 bg-olive-600 dark:bg-olive-400 rounded-full flex-shrink-0 mt-1"></div>
                                                         )}
                                                     </div>
                                                 </button>
@@ -173,7 +173,7 @@ export default function Header() {
                                     {notifications.length > 0 && (
                                         <Link
                                             href="/notifications"
-                                            className="p-3 text-center text-sm font-bold text-olive-600 hover:bg-olive-50 border-t border-neutral-100 transition-all"
+                                            className="p-3 text-center text-sm font-bold text-olive-600 dark:text-olive-400 hover:bg-olive-50 dark:hover:bg-neutral-800 border-t border-neutral-100 dark:border-neutral-800 transition-all block"
                                             onClick={() => setShowNotifications(false)}
                                         >
                                             Ver todas las notificaciones
