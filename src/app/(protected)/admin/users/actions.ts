@@ -452,3 +452,17 @@ export async function changeUserPassword(id: string, newPassword: string) {
 
     return { success: true };
 }
+
+/**
+ * Get all active users in the current admin's company (for admin UI selectors)
+ */
+export async function getAllUsersForAdmin() {
+    const user = await getAuthenticatedUser();
+    if (!user) throw new Error("No autenticado");
+
+    return prisma.user.findMany({
+        where: { companyId: user.companyId as string, isActive: true },
+        select: { id: true, name: true, email: true, role: true, department: true },
+        orderBy: { name: 'asc' },
+    });
+}

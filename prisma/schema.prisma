@@ -117,6 +117,10 @@ model User {
   modificationRequests      VacationModification[] @relation("UserModifications")
   reviewedModificationReqs  VacationModification[] @relation("ReviewedModifications")
 
+  // Manager → managed users many-to-many self-relation
+  managedUsers  User[] @relation("UserManagers")
+  managedBy     User[] @relation("UserManagers")
+
   @@index([companyId])
   @@index([employeeCode])
 }

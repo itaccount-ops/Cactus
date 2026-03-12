@@ -1,0 +1,163 @@
+name: Daily Backup — Neon DB + Vercel Blob → Dropbox
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC (05:00 España / 22:00 México)
+  workflow_dispatch:       # lanzar manualmente desde GitHub → Actions → "Run workflow"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install PostgreSQL client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Set timestamp
+        run: |
+          DATE=$(date +%Y-%m-%d_%H-%M)
+          echo "DATE=${DATE}" >> $GITHUB_ENV
+          echo "BACKUP_FILE=backup_${DATE}.zip" >> $GITHUB_ENV
+          mkdir -p backup_staging
+
+      # ── 1. Base de datos (Neon) ──────────────────────────────────────
+      - name: Backup PostgreSQL (Neon)
+        env:
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+        run: |
+          pg_dump "$POSTGRES_URL_NON_POOLING" \
+            --format=custom \
+            --no-acl \
+            --no-owner \
+            -f backup_staging/db.dump
+
+          SIZE=$(du -sh backup_staging/db.dump | cut -f1)
+          echo "DB backup: ${SIZE}"
+
+      # ── 2. Vercel Blob ───────────────────────────────────────────────
+      - name: Backup Vercel Blob
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: |
+          mkdir -p backup_staging/blob
+
+          python3 - <<'EOF'
+          import json, os, urllib.request, urllib.parse
+
+          token = os.environ["BLOB_READ_WRITE_TOKEN"]
+          blob_dir = "backup_staging/blob"
+          downloaded = 0
+          cursor = None
+
+          while True:
+              url = f"https://blob.vercel-storage.com?token={urllib.parse.quote(token)}&limit=1000"
+              if cursor:
+                  url += f"&cursor={urllib.parse.quote(cursor)}"
+
+              with urllib.request.urlopen(url) as resp:
+                  data = json.loads(resp.read())
+
+              for blob in data.get("blobs", []):
+                  pathname  = blob["pathname"]
+                  blob_url  = blob["url"]
+                  dest_path = os.path.join(blob_dir, pathname)
+                  os.makedirs(os.path.dirname(dest_path) if os.path.dirname(dest_path) else blob_dir, exist_ok=True)
+                  urllib.request.urlretrieve(blob_url, dest_path)
+                  downloaded += 1
+
+              if not data.get("hasMore"):
+                  break
+              cursor = data.get("cursor")
+
+          print(f"Blob backup: {downloaded} archivos descargados")
+          EOF
+
+      # ── 3. Empaquetar ────────────────────────────────────────────────
+      - name: Create combined zip
+        run: |
+          cd backup_staging
+          zip -r "../${{ env.BACKUP_FILE }}" .
+          cd ..
+          SIZE=$(du -sh "${{ env.BACKUP_FILE }}" | cut -f1)
+          echo "Backup total: ${{ env.BACKUP_FILE }} (${SIZE})"
+
+      # ── 4. Subir a Dropbox ───────────────────────────────────────────
+      - name: Upload to Dropbox
+        env:
+          DROPBOX_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            https://content.dropboxapi.com/2/files/upload \
+            --header "Authorization: Bearer $DROPBOX_TOKEN" \
+            --header "Dropbox-API-Arg: {\"path\": \"/cactus-backups/${{ env.BACKUP_FILE }}\", \"mode\": \"add\", \"autorename\": true}" \
+            --header "Content-Type: application/octet-stream" \
+            --data-binary @"${{ env.BACKUP_FILE }}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "ERROR: Dropbox respondio HTTP $HTTP_CODE"
+            echo "$BODY"
+            exit 1
+          fi
+
+          echo "Subido a Dropbox: /cactus-backups/${{ env.BACKUP_FILE }}"
+
+      # ── 5. Borrar backups de mas de 30 dias ──────────────────────────
+      - name: Prune backups older than 30 days
+        env:
+          DROPBOX_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+        run: |
+          python3 - <<'EOF'
+          import subprocess, json, os
+          from datetime import datetime, timedelta, timezone
+
+          token   = os.environ["DROPBOX_TOKEN"]
+          cutoff  = datetime.now(timezone.utc) - timedelta(days=30)
+
+          list_result = subprocess.run([
+            "curl", "-s", "-X", "POST",
+            "https://api.dropboxapi.com/2/files/list_folder",
+            "-H", f"Authorization: Bearer {token}",
+            "-H", "Content-Type: application/json",
+            "-d", '{"path": "/cactus-backups"}'
+          ], capture_output=True, text=True)
+
+          data = json.loads(list_result.stdout)
+          if "error_summary" in data:
+              print(f"Error listando carpeta: {data['error_summary']}")
+              exit(0)
+
+          entries = data.get("entries", [])
+          deleted = 0
+
+          for entry in entries:
+              if entry.get(".tag") != "file":
+                  continue
+              mod_str = entry.get("client_modified", "")
+              if not mod_str:
+                  continue
+              mod = datetime.fromisoformat(mod_str.replace("Z", "+00:00"))
+              if mod < cutoff:
+                  subprocess.run([
+                    "curl", "-s", "-X", "POST",
+                    "https://api.dropboxapi.com/2/files/delete_v2",
+                    "-H", f"Authorization: Bearer {token}",
+                    "-H", "Content-Type: application/json",
+                    "-d", json.dumps({"path": entry["path_lower"]})
+                  ], capture_output=True, text=True)
+                  print(f"Eliminado (>30 dias): {entry['name']}")
+                  deleted += 1
+
+          print(f"Backups eliminados: {deleted} | Restantes: {len(entries) - deleted}")
+          EOF
+
+      - name: Summary
+        run: |
+          echo "======================================"
+          echo "Backup completado: ${{ env.BACKUP_FILE }}"
+          echo "Contenido: db.dump + blob/"
+          echo "Dropbox:   /cactus-backups/${{ env.BACKUP_FILE }}"
+          echo "Local:     C:\Users\MEP\MEP Projects Dropbox\Apps\CactusMEP\cactus-backups\"
+          echo "======================================"

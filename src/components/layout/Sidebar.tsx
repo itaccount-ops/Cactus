@@ -14,7 +14,7 @@ interface NavItem {
     href: string;
     icon: React.ComponentType<{ className?: string }>;
     desc: string;
-    managerOnly?: boolean;
+    moduleKey?: string;         // For per-user module access control
     adminOnly?: boolean;
 }
 
@@ -26,61 +26,58 @@ interface NavSection {
 
 const navItems: NavSection[] = [
     {
-        section: 'SuperAdmin', items: [
-            { label: 'Panel Global', href: '/superadmin', icon: Shield, desc: 'Panel de control global' },
-            { label: 'Empresas', href: '/superadmin/companies', icon: Building2, desc: 'Gestión de empresas' },
-            { label: 'Logs Globales', href: '/superadmin/logs', icon: Activity, desc: 'Auditoría de toda la plataforma' },
+        section: 'Administrador Global', items: [
+            { label: 'Panel Global', href: '/superadmin', icon: Shield, desc: 'Panel de control global', moduleKey: 'superadmin-panel' },
+            { label: 'Empresas', href: '/superadmin/companies', icon: Building2, desc: 'Gestión de empresas', moduleKey: 'superadmin-empresas' },
+            { label: 'Logs Globales', href: '/superadmin/logs', icon: Activity, desc: 'Auditoría de toda la plataforma', moduleKey: 'superadmin-logs' },
         ], roles: ['SUPERADMIN']
     },
     {
         section: 'Principal', items: [
-            { label: 'Inicio', href: '/dashboard', icon: LayoutDashboard, desc: 'Panel de control personal' },
-            { label: 'Calendario', href: '/calendar', icon: Calendar, desc: 'Eventos y reuniones' },
-            { label: 'Mis Ausencias', href: '/my-absences', icon: CalendarDays, desc: 'Solicitar y ver mis vacaciones' },
-            { label: 'Mis Tareas', href: '/tasks', icon: CheckSquare, desc: 'Gestionar tareas asignadas' },
-            { label: 'Tablero', href: '/tablero', icon: Layers, desc: 'Gestión estructural de proyectos' },
-            { label: 'Registro Diario', href: '/hours', icon: Clock, desc: 'Registrar y ver mis horas' },
-            { label: 'Notificaciones', href: '/notifications', icon: Bell, desc: 'Centro de avisos' },
+            { label: 'Inicio', href: '/dashboard', icon: LayoutDashboard, desc: 'Panel de control personal', moduleKey: 'inicio' },
+            { label: 'Calendario', href: '/calendar', icon: Calendar, desc: 'Eventos y reuniones', moduleKey: 'calendario' },
+            { label: 'Mis Ausencias', href: '/my-absences', icon: CalendarDays, desc: 'Solicitar y ver mis vacaciones', moduleKey: 'mis-ausencias' },
+            { label: 'Mis Tareas', href: '/tasks', icon: CheckSquare, desc: 'Gestionar tareas asignadas', moduleKey: 'mis-tareas' },
+            { label: 'Notificaciones', href: '/notifications', icon: Bell, desc: 'Centro de avisos', moduleKey: 'notificaciones' },
+        ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER', 'WORKER']
+    },
+    {
+        section: 'Proyectos', items: [
+            { label: 'Tablero', href: '/tablero', icon: Layers, desc: 'Gestión estructural de proyectos', moduleKey: 'tablero' },
+            { label: 'Registro Diario', href: '/hours', icon: Clock, desc: 'Registrar y ver mis horas', moduleKey: 'registro-diario' },
+            { label: 'Control Horario', href: '/control-horas/mi-hoja', icon: Grid3X3, desc: 'Mi hoja mensual de horas', moduleKey: 'control-horas' },
+            { label: 'Aprobación Horaria', href: '/control-horas/global', icon: ClipboardList, desc: 'Gestión y aprobación de horas extras', moduleKey: 'aprobacion' },
+            { label: 'CEP', href: '/control-horas/cep', icon: DollarSign, desc: 'Control Económico Proyecto', moduleKey: 'cep' },
         ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER', 'WORKER']
     },
     {
         section: 'CRM', items: [
-            { label: 'Dashboard', href: '/crm/dashboard', icon: LayoutDashboard, desc: 'Panel de control comercial' },
-            { label: 'Pipeline', href: '/crm/pipeline', icon: Layers, desc: 'Embudo de ventas' },
-            { label: 'Clientes', href: '/crm/clients', icon: Users, desc: 'Gestión de clientes CRM' },
-            { label: 'Leads', href: '/crm/leads', icon: Target, desc: 'Oportunidades de negocio' },
-            { label: 'Cotizaciones', href: '/crm/quotes', icon: ClipboardList, desc: 'Presupuestos y propuestas' },
-            { label: 'Actividades', href: '/crm/activities', icon: Activity, desc: 'Historial de interacción' },
-        ], roles: ['SUPERADMIN'] // TEMPORARY: Hidden for everyone except SuperAdmin
-    },
-    {
-        section: 'Control Horario', items: [
-            { label: 'Mi Hoja', href: '/control-horas/mi-hoja', icon: Calendar, desc: 'Mi hoja mensual de horas', managerOnly: true },
-            { label: 'Equipo', href: '/control-horas/equipo', icon: Users, desc: 'Vista mensual y anual del equipo', managerOnly: true },
-            { label: 'Por Proyecto', href: '/control-horas/proyectos', icon: Briefcase, desc: 'Horas por proyecto', managerOnly: true },
-            { label: 'Matriz', href: '/control-horas/matriz', icon: Grid3X3, desc: 'Proyectos × Personas', managerOnly: true },
-            { label: 'Aprobación Horaria', href: '/control-horas/global', icon: ClipboardList, desc: 'Gestión y aprobación de horas extras', managerOnly: true },
-            { label: 'CEP', href: '/control-horas/cep', icon: DollarSign, desc: 'Control Económico Proyecto', managerOnly: true },
-        ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER', 'WORKER']
+            { label: 'Dashboard', href: '/crm/dashboard', icon: LayoutDashboard, desc: 'Panel de control comercial', moduleKey: 'crm-dashboard' },
+            { label: 'Pipeline', href: '/crm/pipeline', icon: Layers, desc: 'Embudo de ventas', moduleKey: 'crm-pipeline' },
+            { label: 'Clientes', href: '/crm/clients', icon: Users, desc: 'Gestión de clientes CRM', moduleKey: 'crm-clientes' },
+            { label: 'Leads', href: '/crm/leads', icon: Target, desc: 'Oportunidades de negocio', moduleKey: 'crm-leads' },
+            { label: 'Cotizaciones', href: '/crm/quotes', icon: ClipboardList, desc: 'Presupuestos y propuestas', moduleKey: 'crm-cotizaciones' },
+            { label: 'Actividades', href: '/crm/activities', icon: Activity, desc: 'Historial de interacción', moduleKey: 'crm-actividades' },
+        ], roles: ['SUPERADMIN']
     },
     {
         section: 'RRHH', items: [
-            { label: 'Ausencias', href: '/hr/absences', icon: CalendarDays, desc: 'Vacaciones y ausencias' },
-            { label: 'Festivos', href: '/superadmin/holidays', icon: Calendar, desc: 'Calendario de festivos', adminOnly: true },
+            { label: 'Ausencias', href: '/hr/absences', icon: CalendarDays, desc: 'Vacaciones y ausencias', moduleKey: 'rrhh-ausencias' },
+            { label: 'Festivos', href: '/superadmin/holidays', icon: Calendar, desc: 'Calendario de festivos', adminOnly: true, moduleKey: 'rrhh-festivos' },
         ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER']
     },
     {
         section: 'Administración', items: [
-            { label: 'Proyectos', href: '/admin/projects', icon: Briefcase, desc: 'Gestión de proyectos' },
-            { label: 'Clientes', href: '/admin/clients', icon: Building2, desc: 'Directorio de clientes' },
-            { label: 'Usuarios', href: '/admin/users', icon: Users, desc: 'Gestión de equipo' },
-            { label: 'Departamentos', href: '/admin/departments', icon: Building2, desc: 'Configuración por áreas' },
-            { label: 'Equipos', href: '/admin/teams', icon: UserCog, desc: 'Organización de equipos' },
+            { label: 'Proyectos', href: '/admin/projects', icon: Briefcase, desc: 'Gestión de proyectos', moduleKey: 'admin-proyectos' },
+            { label: 'Clientes', href: '/admin/clients', icon: Building2, desc: 'Directorio de clientes', moduleKey: 'admin-clientes' },
+            { label: 'Usuarios', href: '/admin/users', icon: Users, desc: 'Gestión de equipo', moduleKey: 'admin-usuarios' },
+            { label: 'Departamentos', href: '/admin/departments', icon: Building2, desc: 'Configuración por áreas', moduleKey: 'admin-departamentos' },
+            { label: 'Equipos', href: '/admin/teams', icon: UserCog, desc: 'Organización de equipos', moduleKey: 'admin-equipos' },
         ], roles: ['SUPERADMIN', 'ADMIN']
     },
     {
         section: 'Configuración', items: [
-            { label: 'Configuración', href: '/settings', icon: Settings, desc: 'Preferencias personales' },
+            { label: 'Configuración', href: '/settings', icon: Settings, desc: 'Preferencias personales', moduleKey: 'configuracion' },
         ], roles: ['SUPERADMIN', 'ADMIN', 'MANAGER', 'WORKER']
     }
 ];
@@ -91,6 +88,7 @@ import { useState, useEffect } from 'react';
 import { getUnreadCount, getUnreadCountsByRoute } from '@/app/(protected)/notifications/actions';
 import { getCurrentUser } from '@/app/(protected)/settings/actions';
 import { getPendingAbsencesCount } from '@/app/(protected)/hr/actions';
+import { getMyModuleAccess } from '@/app/(protected)/admin/users/module-permissions-actions';
 
 import { useSidebar } from './SidebarContext';
 import { Menu, ChevronLeft } from 'lucide-react';
@@ -103,6 +101,7 @@ export default function Sidebar() {
     const [routeUnreads, setRouteUnreads] = useState<Record<string, number>>({});
     const [pendingAbsences, setPendingAbsences] = useState(0);
     const [userImage, setUserImage] = useState<string | null>(null);
+    const [moduleAccess, setModuleAccess] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         const fetchUnread = async () => {
@@ -121,9 +120,15 @@ export default function Sidebar() {
             }
         };
 
+        const fetchModuleAccess = async () => {
+            const access = await getMyModuleAccess();
+            setModuleAccess(access);
+        };
+
         if (session?.user) {
             fetchUnread();
             fetchUserImage();
+            fetchModuleAccess();
             const interval = setInterval(fetchUnread, 30000);
             return () => clearInterval(interval);
         }
@@ -143,7 +148,7 @@ export default function Sidebar() {
                         <Image src="/M_max.png" alt="Logo" fill className="object-contain" />
                     </div>
                     {!isCollapsed && (
-                        <span className="font-black text-lg text-olive-900 dark:text-olive-500 ml-3 whitespace-nowrap">MEP Projects</span>
+                        <span className="font-black text-lg text-olive-900 dark:text-olive-500 ml-3 whitespace-nowrap">Cactus</span>
                     )}
                 </div>
                 {!isCollapsed && (
@@ -175,8 +180,16 @@ export default function Sidebar() {
                     if (section.roles && !section.roles.includes(userRole)) return null;
 
                     const visibleItems = section.items.filter((item) => {
-                        if (item.managerOnly && userRole === 'WORKER') return false;
+                        // adminOnly items only for admins/superadmin
                         if (item.adminOnly && !['SUPERADMIN', 'ADMIN'].includes(userRole)) return false;
+                        // Items with moduleKey are filtered by per-user module access
+                        // SUPERADMIN and ADMIN always see everything
+                        if (item.moduleKey && !['SUPERADMIN', 'ADMIN'].includes(userRole)) {
+                            // If moduleAccess is still loading (empty object), show all by default
+                            if (Object.keys(moduleAccess).length > 0 && moduleAccess[item.moduleKey] === false) {
+                                return false;
+                            }
+                        }
                         return true;
                     });
 

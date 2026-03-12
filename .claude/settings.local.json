@@ -35,7 +35,19 @@
       "Bash(python:*)",
       "Bash(npm install:*)",
       "Bash($env:FORCE_COLOR=\"0\":*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(cd \"C:/Users/MEP/Desktop/cactus\" && cmd /c \"scripts\\\\backup-manual.bat\" 2>&1 | head -40)",
+      "Bash(cd \"C:/Users/MEP/Desktop/cactus\" && cmd /c \"scripts\\\\\\\\backup-manual.bat > C:\\\\\\\\Temp\\\\\\\\bat_test.txt 2>&1 < nul & type C:\\\\\\\\Temp\\\\\\\\bat_test.txt\")",
+      "Bash(mkdir -p C:/Temp && cmd /c \"cd /d C:\\\\\\\\Users\\\\\\\\MEP\\\\\\\\Desktop\\\\\\\\cactus && scripts\\\\\\\\backup-manual.bat < nul\" 2>&1)",
+      "Bash(python3 -c \"\nwith open\\('C:/Users/MEP/Desktop/cactus/scripts/backup-manual.bat', 'rb'\\) as f:\n    header = f.read\\(10\\)\nprint\\('BOM:', header[:3].hex\\(\\)\\)\nprint\\('First bytes:', header.hex\\(\\)\\)\n\")",
+      "Bash(powershell -Command \"\n\\\\$bytes = [System.IO.File]::ReadAllBytes\\('C:\\\\\\\\Users\\\\\\\\MEP\\\\\\\\Desktop\\\\\\\\cactus\\\\\\\\scripts\\\\\\\\backup-manual.bat'\\)\nWrite-Host \\('BOM: ' + [System.BitConverter]::ToString\\(\\\\$bytes[0..2]\\)\\)\nWrite-Host \\('Size: ' + \\\\$bytes.Length + ' bytes'\\)\n\")",
+      "Bash(powershell -Command \"\n\\\\$content = Get-Content 'C:\\\\\\\\Users\\\\\\\\MEP\\\\\\\\Desktop\\\\\\\\cactus\\\\\\\\.env.production' -Raw\n\\\\$lines = \\\\$content -split '\\\\n'\nforeach \\(\\\\$line in \\\\$lines\\) {\n    if \\(\\\\$line -match '^\\(POSTGRES_URL_NON_POOLING|BLOB_READ_WRITE_TOKEN\\)'\\) {\n        \\\\$key = \\(\\\\$line -split '='\\)[0]\n        Write-Host \\(\\\\$key + '= [SET]'\\)\n    }\n}\n\")",
+      "Bash(powershell -Command \"Get-Content 'C:/Users/MEP/Desktop/cactus/.env.production' | Select-String -Pattern '^\\(POSTGRES_URL_NON_POOLING|BLOB_READ_WRITE_TOKEN\\)' | ForEach-Object { \\(\\($_ -split '='\\)[0]\\) + '= [SET]' }\")",
+      "Bash(cmd /c \"findstr /B \\\\\"POSTGRES_URL_NON_POOLING BLOB_READ_WRITE_TOKEN\\\\\" \\\\\"C:\\\\Users\\\\MEP\\\\Desktop\\\\cactus\\\\.env.production\\\\\"\")",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\MEP\\\\Desktop\\\\cactus && scripts\\\\backup-manual.bat < nul\" 2>&1)",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\MEP\\\\Desktop\\\\cactus && scripts\\\\backup-manual.bat > C:\\\\Temp\\\\backup_test.txt 2>&1 < nul\")",
+      "Read(//c/Temp/**)",
+      "Bash(cmd /c \"type C:\\\\Temp\\\\backup_test.txt\")"
     ]
   }
 }
