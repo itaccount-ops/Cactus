@@ -47,7 +47,13 @@
       "Bash(cmd /c \"cd /d C:\\\\Users\\\\MEP\\\\Desktop\\\\cactus && scripts\\\\backup-manual.bat < nul\" 2>&1)",
       "Bash(cmd /c \"cd /d C:\\\\Users\\\\MEP\\\\Desktop\\\\cactus && scripts\\\\backup-manual.bat > C:\\\\Temp\\\\backup_test.txt 2>&1 < nul\")",
       "Read(//c/Temp/**)",
-      "Bash(cmd /c \"type C:\\\\Temp\\\\backup_test.txt\")"
+      "Bash(cmd /c \"type C:\\\\Temp\\\\backup_test.txt\")",
+      "Bash(sleep 15 && cat \"C:/Users/MEP/AppData/Local/Temp/claude/C--Users-MEP-Desktop-cactus/tasks/b2l6irvoj.output\" 2>/dev/null; cmd /c \"if exist C:\\\\Temp\\\\backup_test.txt type C:\\\\Temp\\\\backup_test.txt\" 2>&1)",
+      "Bash(cmd /c \"mkdir C:\\\\Temp 2>nul & echo test > C:\\\\Temp\\\\test.txt & type C:\\\\Temp\\\\test.txt\")",
+      "Bash(cmd /c \"echo hello world\")",
+      "Bash(cmd /c \"where pg_dump 2>&1\")",
+      "Bash(cmd /c \"dir /s /b \\\\\"C:\\\\Program Files\\\\pg_dump.exe\\\\\" 2>&1 & dir /s /b \\\\\"C:\\\\Program Files \\(x86\\)\\\\pg_dump.exe\\\\\" 2>&1\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\' -Filter 'pg_dump.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName\" 2>&1)"
     ]
   }
 }

@@ -52,7 +52,7 @@ pg_dump --version >nul 2>&1
 if not errorlevel 1 set "PGDUMP=pg_dump"
 
 if "!PGDUMP!"=="" (
-    for %%V in (17 16 15 14 13) do (
+    for %%V in (18 17 16 15 14 13) do (
         if exist "C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe" (
             if "!PGDUMP!"=="" (
                 set "PGDUMP=C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe"

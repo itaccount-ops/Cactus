@@ -185,8 +185,8 @@ export function validateAbsenceRequest(ctx: ValidationContext): ValidationResult
     const workingDays = countWorkingDays(start, end, holidays);
     let finalEndDate = new Date(end);
     let totalDays = workingDays;
-    // A "día suelto" is exactly 1 working day requested (not a multi-day block)
-    const isLooseDay = type === 'VACATION' && workingDays === 1;
+    // A "día suelto" is < 5 working days requested
+    const isLooseDay = type === 'VACATION' && workingDays < ABSENCE_LIMITS.LOOSE_DAY_THRESHOLD;
     const isLooseDayWithoutNotice = isLooseDay && (ctx.isLateNotice ?? false);
 
     // HR override skips most business rules but still validates basic integrity
@@ -283,7 +283,19 @@ function validateVacation({ ctx, start, end, workingDays, isLooseDay, isLooseDay
         );
     }
 
-    // Loose day info is tracked server-side for HR visibility but never blocks the user
+    // Loose day limit validation
+    if (isLooseDay) {
+        if (counters.looseVacationDaysUsed >= ABSENCE_LIMITS.LOOSE_DAYS_MAX) {
+            errors.push(
+                `Has alcanzado el límite anual de días sueltos (${ABSENCE_LIMITS.LOOSE_DAYS_MAX} días).`
+            );
+        }
+        if (isLooseDayWithoutNotice && counters.looseVacationDaysWithoutNotice >= ABSENCE_LIMITS.LOOSE_WITHOUT_NOTICE_MAX) {
+            errors.push(
+                `Has alcanzado el límite anual de días de preaviso corto (${ABSENCE_LIMITS.LOOSE_WITHOUT_NOTICE_MAX} días).`
+            );
+        }
+    }
 
     // Approaching balance warning
     const remaining = counters.vacationDays - existingVacationDays - workingDays;

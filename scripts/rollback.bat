@@ -61,7 +61,7 @@ pg_restore --version >nul 2>&1
 if not errorlevel 1 set "PGRESTORE=pg_restore"
 
 if "!PGRESTORE!"=="" (
-    for %%V in (17 16 15 14 13) do (
+    for %%V in (18 17 16 15 14 13) do (
         if exist "C:\Program Files\PostgreSQL\%%V\bin\pg_restore.exe" (
             if "!PGRESTORE!"=="" (
                 set "PGRESTORE=C:\Program Files\PostgreSQL\%%V\bin\pg_restore.exe"

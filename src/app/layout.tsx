@@ -8,8 +8,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MEP Projects - Gestión de Horas",
+  title: "Cactus - Gestión de Proyectos",
   description: "Sistema avanzado de control de tiempos y gestión de proyectos",
+  icons: {
+    icon: "/M_max.png",
+    shortcut: "/M_max.png",
+    apple: "/M_max.png",
+  },
 };
 
 export const dynamic = 'force-dynamic';
