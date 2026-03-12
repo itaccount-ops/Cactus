@@ -54,7 +54,9 @@
       "Bash(cmd /c \"where pg_dump 2>&1\")",
       "Bash(cmd /c \"dir /s /b \\\\\"C:\\\\Program Files\\\\pg_dump.exe\\\\\" 2>&1 & dir /s /b \\\\\"C:\\\\Program Files \\(x86\\)\\\\pg_dump.exe\\\\\" 2>&1\")",
       "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\' -Filter 'pg_dump.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName\" 2>&1)",
-      "Bash(powershell -Command \"Test-Path 'C:\\\\Users\\\\MEP\\\\MEP Projects Dropbox\\\\Apps\\\\CactusMEP'\")"
+      "Bash(powershell -Command \"Test-Path 'C:\\\\Users\\\\MEP\\\\MEP Projects Dropbox\\\\Apps\\\\CactusMEP'\")",
+      "Bash(powershell -Command \"Get-ChildItem 'C:\\\\Users\\\\MEP\\\\MEP Projects Dropbox\\\\Apps\\\\CactusMEP\\\\cactus-backups' -ErrorAction SilentlyContinue | Select-Object Name, Length, LastWriteTime\")",
+      "Bash(powershell -Command \"Test-Path 'C:\\\\Users\\\\MEP\\\\MEP Projects Dropbox\\\\Apps\\\\CactusMEP\\\\cactus-backups'\")"
     ]
   }
 }
