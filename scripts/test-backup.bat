@@ -1,54 +1,49 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set "DROPBOX_DEST=C:\Users\MEP\MEP Projects Dropbox\Apps\CactusMEP\cactus-backups"
-set "ENV_FILE=%~dp0..\.env.production"
+echo Inicializando carpeta Dropbox Apps/CactusMEP...
+echo.
 
-echo [1] Leyendo .env.production...
+:: Leer token de Dropbox del .env.production
+set "ENV_FILE=%~dp0..\.env.production"
 for /f "usebackq tokens=1,* delims==" %%A in ("!ENV_FILE!") do (
     set "KEY=%%A"
     set "KEY=!KEY: =!"
-    if "!KEY!"=="POSTGRES_URL_NON_POOLING" set "DB_URL=%%B"
-    if "!KEY!"=="BLOB_READ_WRITE_TOKEN"    set "BLOB_TOKEN=%%B"
-)
-echo     DB_URL  = !DB_URL:~0,40!...
-echo     BLOB    = !BLOB_TOKEN:~0,20!...
-
-echo [2] Buscando pg_dump...
-set "PGDUMP="
-for %%V in (18 17 16 15 14 13) do (
-    if exist "C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe" (
-        if "!PGDUMP!"=="" set "PGDUMP=C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe"
-    )
-)
-echo     PGDUMP = !PGDUMP!
-
-echo [3] Creando carpeta Dropbox...
-powershell -NoProfile -Command "New-Item -ItemType Directory -Path '!DROPBOX_DEST!' -Force | Out-Null"
-echo     errorlevel = !errorlevel!
-
-echo [4] Obteniendo fecha...
-for /f %%D in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-dd"') do set "DATE_PART=%%D"
-for /f %%T in ('powershell -NoProfile -Command "Get-Date -Format HH-mm"') do set "TIME_PART=%%T"
-echo     Fecha = %DATE_PART% %TIME_PART%
-
-echo [5] Creando carpeta temporal...
-set "TEMP_DIR=%TEMP%\cactus_test_%DATE_PART%"
-mkdir "!TEMP_DIR!" 2>nul
-echo     TEMP_DIR = !TEMP_DIR!
-
-echo [6] Ejecutando pg_dump (puede tardar unos segundos)...
-"!PGDUMP!" "!DB_URL!" --format=custom --no-acl --no-owner -f "!TEMP_DIR!\db.dump"
-echo     errorlevel pg_dump = !errorlevel!
-
-if exist "!TEMP_DIR!\db.dump" (
-    echo     db.dump creado OK
-) else (
-    echo     ERROR: db.dump no se creo
+    if "!KEY!"=="DROPBOX_ACCESS_TOKEN" set "DBX_TOKEN=%%B"
 )
 
-rmdir /s /q "!TEMP_DIR!" 2>nul
+if "!DBX_TOKEN!"=="" (
+    echo [ERROR] DROPBOX_ACCESS_TOKEN no encontrado en .env.production
+    echo Añade: DROPBOX_ACCESS_TOKEN=tu_token_aqui
+    pause & exit /b 1
+)
+
+echo Llamando a Dropbox API para crear carpeta cactus-backups...
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$token = $env:DBX_TOKEN_PS;" ^
+    "$body = '{\"path\": \"/cactus-backups\", \"autorename\": false}';" ^
+    "try {" ^
+    "  $r = Invoke-RestMethod -Uri 'https://api.dropboxapi.com/2/files/create_folder_v2' -Method Post -Headers @{ Authorization = 'Bearer ' + $token; 'Content-Type' = 'application/json' } -Body $body;" ^
+    "  Write-Host 'Carpeta creada en Dropbox. Espera a que Dropbox sincronice...';" ^
+    "} catch {" ^
+    "  $msg = $_.Exception.Message;" ^
+    "  if ($msg -like '*conflict*' -or $msg -like '*already*') { Write-Host 'Carpeta ya existe OK' }" ^
+    "  else { Write-Host ('Error: ' + $msg) }" ^
+    "}"
+
+set "DBX_TOKEN_PS=!DBX_TOKEN!"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$token = $env:DBX_TOKEN_PS;" ^
+    "$body = '{\"path\": \"/cactus-backups\", \"autorename\": false}';" ^
+    "try {" ^
+    "  $r = Invoke-RestMethod -Uri 'https://api.dropboxapi.com/2/files/create_folder_v2' -Method Post -Headers @{ Authorization = 'Bearer ' + $token; 'Content-Type' = 'application/json' } -Body $body;" ^
+    "  Write-Host 'OK - carpeta /cactus-backups creada en Dropbox';" ^
+    "  Write-Host 'Espera unos segundos a que Dropbox Desktop sincronice y vuelve a ejecutar backup-manual.bat';" ^
+    "} catch {" ^
+    "  $msg = $_.Exception.Response.StatusCode;" ^
+    "  if ($msg -eq 409) { Write-Host 'OK - carpeta ya existe en Dropbox' }" ^
+    "  else { Write-Host ('Error al crear carpeta: ' + $_.Exception.Message) }" ^
+    "}"
 
 echo.
-echo === FIN DEL TEST ===
 pause
