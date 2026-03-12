@@ -14,12 +14,15 @@ const DEPT_COLORS: Record<string, string> = {
     ELECTRICAL: 'bg-yellow-500',
     CIVIL_DESIGN: 'bg-blue-500',
     INSTRUMENTATION: 'bg-purple-500',
-    MECHANICAL: 'bg-orange-500',
     ADMINISTRATION: 'bg-neutral-400',
-    ENGINEERING: 'bg-green-500',
-    ARCHITECTURE: 'bg-pink-500',
     IT: 'bg-cyan-500',
+    ECONOMIC: 'bg-emerald-500',
+    MARKETING: 'bg-rose-500',
     OTHER: 'bg-neutral-400',
+    // Fallbacks
+    ENGINEERING: 'bg-green-500',
+    MECHANICAL: 'bg-orange-500',
+    ARCHITECTURE: 'bg-pink-500',
 };
 
 type ProjectItem = {

@@ -56,7 +56,8 @@
       "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\' -Filter 'pg_dump.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName\" 2>&1)",
       "Bash(powershell -Command \"Test-Path 'C:\\\\Users\\\\MEP\\\\MEP Projects Dropbox\\\\Apps\\\\CactusMEP'\")",
       "Bash(powershell -Command \"Get-ChildItem 'C:\\\\Users\\\\MEP\\\\MEP Projects Dropbox\\\\Apps\\\\CactusMEP\\\\cactus-backups' -ErrorAction SilentlyContinue | Select-Object Name, Length, LastWriteTime\")",
-      "Bash(powershell -Command \"Test-Path 'C:\\\\Users\\\\MEP\\\\MEP Projects Dropbox\\\\Apps\\\\CactusMEP\\\\cactus-backups'\")"
+      "Bash(powershell -Command \"Test-Path 'C:\\\\Users\\\\MEP\\\\MEP Projects Dropbox\\\\Apps\\\\CactusMEP\\\\cactus-backups'\")",
+      "Bash(powershell -Command \"Get-ChildItem 'C:\\\\Users\\\\MEP\\\\MEP Projects Dropbox\\\\Apps\\\\CactusMEP\\\\cactus-backups' | Select-Object Name, @{N='Size';E={[math]::Round\\($_.Length/1MB,2\\).ToString\\(\\)+'MB'}}, LastWriteTime\")"
     ]
   }
 }

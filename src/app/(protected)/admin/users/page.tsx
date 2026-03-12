@@ -77,7 +77,7 @@ function UsersContent() {
         try {
             await inviteUser(inviteData);
             setShowInviteModal(false);
-            setInviteData({ name: '', email: '', role: 'WORKER', department: 'ENGINEERING' });
+            setInviteData({ name: '', email: '', role: 'WORKER', department: 'CIVIL_DESIGN' });
             fetchUsers();
         } catch (error) {
             alert('Error invitando usuario');
@@ -186,6 +186,7 @@ function UsersContent() {
                     <option value="IT">Informática</option>
                     <option value="ECONOMIC">Económico</option>
                     <option value="MARKETING">Marketing</option>
+                    <option value="OTHER">Otros</option>
                 </select>
 
                 <select

@@ -66,7 +66,7 @@ function ProjectsContent() {
             code: '',
             name: '',
             year: new Date().getFullYear(),
-            department: 'ENGINEERING',
+            department: 'CIVIL_DESIGN',
             clientId: '',
             hourlyRate: '',
             isActive: true
@@ -247,9 +247,13 @@ function ProjectsContent() {
                                             onChange={e => setEditingProject({ ...editingProject, department: e.target.value })}
                                             className="w-full p-2 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-lg focus:ring-2 focus:ring-olive-500/20 outline-none"
                                         >
-                                            <option value="ENGINEERING">ENGINEERING</option>
-                                            <option value="ARCHITECTURE">ARCHITECTURE</option>
+                                            <option value="CIVIL_DESIGN">CIVIL & DESIGN</option>
+                                            <option value="ELECTRICAL">ELECTRICAL</option>
+                                            <option value="INSTRUMENTATION">INSTRUMENTATION</option>
                                             <option value="ADMINISTRATION">ADMINISTRATION</option>
+                                            <option value="IT">IT</option>
+                                            <option value="ECONOMIC">ECONOMIC</option>
+                                            <option value="MARKETING">MARKETING</option>
                                             <option value="OTHER">OTHER</option>
                                         </select>
                                     </div>
