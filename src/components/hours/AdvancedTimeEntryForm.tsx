@@ -361,10 +361,9 @@ export default function AdvancedTimeEntryForm({
             </div>
         </div>
 
-            {/* Info Box */}
             <div className="p-4 bg-neutral-50 dark:bg-neutral-700/50 border border-neutral-200 dark:border-neutral-600 rounded-lg">
                 <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                    💡 <strong>Consejo:</strong> Las entradas se guardan como borrador. Puedes editarlas durante las primeras 24 horas. Para facturarlas, debes enviarlas a aprobación desde tu dashboard de horas.
+                    💡 <strong>Consejo:</strong> Todas las horas registradas se auto-aprueban automáticamente para tu comodidad. Puedes editarlas o eliminarlas desde tu registro diario en cualquier momento.
                 </p>
             </div>
         </form>

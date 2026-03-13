@@ -28,7 +28,7 @@ import {
     createTimeEntry,
     updateTimeEntry,
     deleteTimeEntry,
-    approveTimeEntries,
+    approveTimeEntriesAction,
     getActiveProjects,
     getHolidaysAndAbsences,
 } from '@/app/(protected)/hours/actions';
@@ -160,12 +160,8 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
         if (nuevoMes < 0) { nuevoMes = 11; nuevoAño--; }
         else if (nuevoMes > 11) { nuevoMes = 0; nuevoAño++; }
         setResumenMes(nuevoMes);
-        setResumenAño(nuevoAño);
+    setResumenAño(nuevoAño);
     };
-
-    useEffect(() => {
-        loadData();
-    }, [userId]); // Reload if userId changes
 
     // Auto-calculate hours from range
     useEffect(() => {
@@ -717,7 +713,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                                             <button 
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    approveTimeEntries([entry.id]).then(() => loadData());
+                                                                    approveTimeEntriesAction([entry.id]).then(() => loadData());
                                                                 }} 
                                                                 className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all" 
                                                                 title="Aprobar mis horas"
