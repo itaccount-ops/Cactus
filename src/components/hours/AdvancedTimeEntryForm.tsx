@@ -18,6 +18,7 @@ interface FormData {
     endTime?: string;
     notes?: string;
     billable: boolean;
+    isExtraHours: boolean;
 }
 
 interface AdvancedTimeEntryFormProps {
@@ -44,7 +45,8 @@ export default function AdvancedTimeEntryForm({
         startTime: initialData?.startTime || '',
         endTime: initialData?.endTime || '',
         notes: initialData?.notes || '',
-        billable: initialData?.billable !== undefined ? initialData.billable : true
+        billable: initialData?.billable !== undefined ? initialData.billable : true,
+        isExtraHours: initialData?.isExtraHours !== undefined ? initialData.isExtraHours : false
     });
 
     const [useTimeRange, setUseTimeRange] = useState(!!(initialData?.startTime && initialData?.endTime));
@@ -136,7 +138,8 @@ export default function AdvancedTimeEntryForm({
                         startTime: '',
                         endTime: '',
                         notes: '',
-                        billable: true
+                        billable: true,
+                        isExtraHours: false
                     });
                 }
             }
@@ -288,6 +291,7 @@ export default function AdvancedTimeEntryForm({
                         disabled={isSubmitting}
                     />
                 </div>
+
             </div>
 
             {/* Errors */}
@@ -315,7 +319,21 @@ export default function AdvancedTimeEntryForm({
             )}
 
             {/* Actions */}
-            <div className="flex justify-end space-x-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+            <div className="flex items-center justify-between pt-2">
+                <div 
+                    onClick={() => handleChange('isExtraHours', !formData.isExtraHours)}
+                    className="flex items-center space-x-3 cursor-pointer group w-fit hover:opacity-80 transition-opacity"
+                >
+                    <div className="relative flex items-center">
+                        <div className={`w-8 h-4 rounded-full transition-colors ${formData.isExtraHours ? 'bg-olive-600' : 'bg-neutral-300 dark:bg-neutral-600'}`}></div>
+                        <div className={`absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${formData.isExtraHours ? 'translate-x-4' : ''}`}></div>
+                    </div>
+                    <span className="text-xs font-bold text-neutral-600 dark:text-neutral-400 group-hover:text-olive-600 transition-colors">
+                        Horas Extras (Remuneradas)
+                    </span>
+                </div>
+
+                <div className="flex space-x-3">
                 {onCancel && (
                     <button
                         type="button"
@@ -329,7 +347,7 @@ export default function AdvancedTimeEntryForm({
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    className="px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all active:scale-[0.98]"
                 >
                     {isSubmitting ? (
                         <>
@@ -341,6 +359,7 @@ export default function AdvancedTimeEntryForm({
                     )}
                 </button>
             </div>
+        </div>
 
             {/* Info Box */}
             <div className="p-4 bg-neutral-50 dark:bg-neutral-700/50 border border-neutral-200 dark:border-neutral-600 rounded-lg">

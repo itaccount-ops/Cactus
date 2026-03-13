@@ -15,6 +15,7 @@ export async function saveTimerEntry(data: {
     notes?: string;
     startTime?: string;
     endTime?: string;
+    isExtraHours?: boolean;
 }) {
     const user = await getAuthenticatedUser();
     if (!user) return { error: 'No autorizado' };
@@ -49,6 +50,9 @@ export async function saveTimerEntry(data: {
             return { error: validation.errors.join('; '), errors: validation.errors };
         }
 
+        const isExtraHours = data.isExtraHours === true;
+        const entryStatus = isExtraHours ? 'SUBMITTED' : 'APPROVED';
+
         // Create entry with proper status
         const entry = await prisma.timeEntry.create({
             data: {
@@ -59,7 +63,9 @@ export async function saveTimerEntry(data: {
                 notes: data.notes || null,
                 startTime: data.startTime || null,
                 endTime: data.endTime || null,
-                status: 'DRAFT',
+                isExtraHours: isExtraHours,
+                status: entryStatus,
+                ...(entryStatus === 'APPROVED' ? { approvedAt: new Date(), approvedById: user.id } : {})
             }
         });
 

@@ -5,7 +5,7 @@ import { Play, Pause, Square, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface TimerProps {
-    onSave?: (hours: number, projectId: string, notes: string) => void;
+    onSave?: (hours: number, projectId: string, notes: string, isExtraHours: boolean) => void;
     projects?: Array<{ id: string; code: string; name: string; }>;
 }
 
@@ -16,6 +16,7 @@ export default function Timer({ onSave, projects = [] }: TimerProps) {
     const [showModal, setShowModal] = useState(false);
     const [selectedProject, setSelectedProject] = useState('');
     const [notes, setNotes] = useState('');
+    const [isExtraHours, setIsExtraHours] = useState(false);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Cargar estado del timer desde localStorage
@@ -94,7 +95,7 @@ export default function Timer({ onSave, projects = [] }: TimerProps) {
     const handleSave = async () => {
         const hours = parseFloat((seconds / 3600).toFixed(2));
         if (onSave && selectedProject) {
-            await onSave(hours, selectedProject, notes);
+            await onSave(hours, selectedProject, notes, isExtraHours);
         }
         // Reset timer
         setIsRunning(false);
@@ -103,6 +104,7 @@ export default function Timer({ onSave, projects = [] }: TimerProps) {
         setShowModal(false);
         setSelectedProject('');
         setNotes('');
+        setIsExtraHours(false);
         localStorage.removeItem('timerState');
     };
 
@@ -217,33 +219,48 @@ export default function Timer({ onSave, projects = [] }: TimerProps) {
                                     <textarea
                                         value={notes}
                                         onChange={(e) => setNotes(e.target.value)}
-                                        rows={3}
-                                        className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-4 focus:ring-olive-500/10 focus:border-olive-500 outline-none resize-none"
+                                        rows={2}
+                                        className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-4 focus:ring-olive-500/10 focus:border-olive-500 outline-none resize-none text-sm"
                                         placeholder="¿En qué trabajaste?"
                                     />
                                 </div>
                             </div>
 
-                            <div className="flex space-x-3 mt-6">
-                                <button
-                                    onClick={handleDiscard}
-                                    className="flex-1 px-6 py-3 border-2 border-error-200 text-error-600 rounded-xl hover:bg-error-50 font-bold transition-all"
+                            <div className="flex items-center justify-between mt-4">
+                                <div 
+                                    className="flex items-center space-x-3 py-1 cursor-pointer group w-fit" 
+                                    onClick={() => setIsExtraHours(!isExtraHours)}
                                 >
-                                    Descartar
-                                </button>
-                                <button
-                                    onClick={handleCancel}
-                                    className="flex-1 px-6 py-3 border-2 border-neutral-200 text-neutral-600 rounded-xl hover:bg-neutral-50 font-bold transition-all"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={!selectedProject}
-                                    className="flex-1 px-6 py-3 bg-olive-600 text-white rounded-xl hover:bg-olive-700 font-bold transition-all shadow-lg shadow-olive-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Guardar
-                                </button>
+                                    <div className="relative flex items-center">
+                                        <div className={`w-8 h-4 bg-neutral-300 rounded-full transition-colors ${isExtraHours ? 'bg-olive-600' : 'bg-neutral-300'}`}></div>
+                                        <div className={`absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${isExtraHours ? 'translate-x-4' : ''}`}></div>
+                                    </div>
+                                    <span className="text-xs font-bold text-neutral-600 group-hover:text-olive-700 transition-colors">
+                                        Horas Extras (Remuneradas)
+                                    </span>
+                                </div>
+
+                                <div className="flex space-x-2">
+                                    <button
+                                        onClick={handleDiscard}
+                                        className="px-3 py-2 border-2 border-error-200 text-error-600 rounded-xl hover:bg-error-50 font-bold transition-all text-xs"
+                                    >
+                                        Descartar
+                                    </button>
+                                    <button
+                                        onClick={handleCancel}
+                                        className="px-3 py-2 border-2 border-neutral-200 text-neutral-600 rounded-xl hover:bg-neutral-50 font-bold transition-all text-xs"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={!selectedProject}
+                                        className="px-5 py-2 bg-olive-600 text-white rounded-xl hover:bg-olive-700 font-bold transition-all shadow-lg shadow-olive-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                                    >
+                                        Guardar
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </div>

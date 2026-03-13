@@ -80,6 +80,8 @@ export async function validateNoOverlap(params: {
 
 /**
  * Validates that daily hours limit is not exceeded
+ * NOTA: Se ha eliminado el límite estricto de 8h para permitir horas extra manuales.
+ * Se mantiene el límite absoluto de 24h.
  */
 export async function validateDailyLimit(params: {
     userId: string;
@@ -89,7 +91,7 @@ export async function validateDailyLimit(params: {
 }): Promise<{ valid: boolean; error?: string; currentTotal?: number; limit?: number; isOvertime?: boolean }> {
     const { userId, date, hours, excludeEntryId } = params;
 
-    const maxDailyLimit = 8; // Horas normales de jornada
+    const maxDailyLimit = 8; // Referencia de jornada normal
     const absoluteMaxDaily = 24; // Límite absoluto de un día
 
     // Normalizar fecha (UTC para coincidir con @db.Date)
@@ -125,29 +127,15 @@ export async function validateDailyLimit(params: {
         };
     }
 
-    // Ya se han superado las 8h, esta entrada es overtime completa
-    if (currentTotal >= maxDailyLimit) {
-        return {
-            valid: true,
-            isOvertime: true,
-            currentTotal,
-            limit: maxDailyLimit
-        };
-    }
+    // Informar si se superan las 8h para aviso visual, pero permitir el registro
+    const isOverLimit = newTotal > maxDailyLimit;
 
-    // Esta entrada cruzaría el límite de las 8h: forzar split
-    if (newTotal > maxDailyLimit) {
-        const allowed = maxDailyLimit - currentTotal;
-        const overtime = newTotal - maxDailyLimit;
-        return {
-            valid: false,
-            error: `No puedes registrar ${hours}h de una sola vez porque cruzarías el límite de ${maxDailyLimit}h diarias. Registra primero ${allowed.toFixed(1)}h para completar tu jornada, y luego registra ${overtime.toFixed(1)}h extra que quedarán pendientes de aprobación.`,
-            currentTotal,
-            limit: maxDailyLimit
-        };
-    }
-
-    return { valid: true, currentTotal, limit: maxDailyLimit, isOvertime: false };
+    return { 
+        valid: true, 
+        currentTotal, 
+        limit: maxDailyLimit, 
+        isOvertime: isOverLimit 
+    };
 }
 
 /**
@@ -337,10 +325,12 @@ export async function validateCanApprove(params: {
         return { valid: false, error: "Solo se pueden aprobar entradas en estado SUBMITTED" };
     }
 
-    // No puedes aprobar tus propias horas
+    // No puedes aprobar tus propias horas (Deshabilitado por requerimiento del usuario)
+    /*
     if (entry.userId === approverId) {
         return { valid: false, error: "No puedes aprobar tus propias horas" };
     }
+    */
 
     return { valid: true, entry };
 }
@@ -376,10 +366,11 @@ export async function validateCreateTimeEntry(params: {
     startTime?: string;
     endTime?: string;
     hours: number;
+    isExtraHours?: boolean;
 }): Promise<{ valid: boolean; errors: string[]; warnings: string[]; isOvertime?: boolean }> {
     const errors: string[] = [];
     const warnings: string[] = [];
-    let isOvertime = false;
+    let isOvertime = params.isExtraHours === true;
 
     // Validar fecha
     const dateValidation = validateDateRange(params.date);

@@ -49,14 +49,10 @@ set "PGDUMP="
 pg_dump --version >nul 2>&1
 if not errorlevel 1 set "PGDUMP=pg_dump"
 
-if "!PGDUMP!"=="" (
-    for %%V in (18 17 16 15 14 13) do (
-        if exist "C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe" (
-            if "!PGDUMP!"=="" (
-                set "PGDUMP=C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe"
-                echo  PostgreSQL encontrado: C:\Program Files\PostgreSQL\%%V\bin\
-            )
-        )
+for %%V in (18 17 16 15 14 13) do (
+    if "!PGDUMP!"=="" if exist "C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe" (
+        set "PGDUMP=C:\Program Files\PostgreSQL\%%V\bin\pg_dump.exe"
+        echo  PostgreSQL encontrado: C:\Program Files\PostgreSQL\%%V\bin\
     )
 )
 
@@ -189,4 +185,4 @@ exit /b 0
 
 :LOG
 echo [%TIME%] %~1 >> "!LOGFILE!"
-exit /b 0
+goto :eof

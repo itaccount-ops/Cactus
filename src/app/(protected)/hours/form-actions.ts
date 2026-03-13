@@ -7,10 +7,11 @@ import { z } from "zod";
 import { checkPermission } from "@/lib/permissions";
 
 const TimeEntrySchema = z.object({
-    projectId: z.string().min(1, "Project is required"),
+    projectId: z.string().min(1, "Proyecto requerido"),
     date: z.string(),
-    hours: z.number().min(0.1, "Minimum 0.1 hours").max(24, "Maximum 24 hours"),
+    hours: z.number().min(0.1, "Mínimo 0.1 horas").max(24, "Máximo 24 horas"),
     notes: z.string().optional(),
+    isExtraHours: z.boolean().default(false),
 });
 
 export async function submitTimeEntry(prevState: any, formData: FormData) {
@@ -27,6 +28,7 @@ export async function submitTimeEntry(prevState: any, formData: FormData) {
         date: formData.get("date"),
         hours: Number(formData.get("hours")),
         notes: formData.get("notes"),
+        isExtraHours: formData.get("isExtraHours") === "on" || formData.get("isExtraHours") === "true",
     };
 
     const validatedFields = TimeEntrySchema.safeParse(rawData);
@@ -38,7 +40,7 @@ export async function submitTimeEntry(prevState: any, formData: FormData) {
         };
     }
 
-    const { projectId, date, hours, notes } = validatedFields.data;
+    const { projectId, date, hours, notes, isExtraHours } = validatedFields.data;
 
     // Business Logic: Check if project is active
     const project = await prisma.project.findUnique({
@@ -49,6 +51,9 @@ export async function submitTimeEntry(prevState: any, formData: FormData) {
         return { error: "Project is not active or does not exist." };
     }
 
+    // Aprobación automática si NO son horas extra
+    const entryStatus = isExtraHours ? 'SUBMITTED' : 'APPROVED';
+
     // Create entry
     try {
         await prisma.timeEntry.create({
@@ -58,6 +63,9 @@ export async function submitTimeEntry(prevState: any, formData: FormData) {
                 date: new Date(date),
                 hours,
                 notes,
+                isExtraHours,
+                status: entryStatus,
+                ...(entryStatus === 'APPROVED' ? { approvedAt: new Date(), approvedById: session.user.id } : {})
             },
         });
     } catch (error) {

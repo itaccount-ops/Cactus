@@ -28,8 +28,8 @@ export default function TimerWrapper() {
             });
     }, []);
 
-    const handleSave = async (hours: number, projectId: string, notes?: string) => {
-        await saveTimerEntry({ hours, projectId, notes });
+    const handleSave = async (hours: number, projectId: string, notes: string, isExtraHours: boolean) => {
+        await saveTimerEntry({ hours, projectId, notes, isExtraHours });
     };
 
     if (loading) {

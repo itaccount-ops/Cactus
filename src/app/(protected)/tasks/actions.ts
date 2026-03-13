@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { createNotification } from "@/app/(protected)/notifications/actions";
+import { createNotification, markNotificationsAsReadForRoute } from "@/app/(protected)/notifications/actions";
 import { auditCrud, checkPermission } from "@/lib/permissions";
 import { TaskStateMachine } from "@/lib/state-machine";
 
@@ -272,6 +272,9 @@ export async function updateTask(taskId: string, data: {
             });
         }
 
+        // Clean up assignment/comment notifications for this task (global)
+        await markNotificationsAsReadForRoute(`/tasks/${taskId}`, true);
+
         revalidatePath('/tasks');
         return { success: true, task: updated };
     } catch (error) {
@@ -363,6 +366,9 @@ export async function addTaskComment(taskId: string, content: string) {
                 senderId: session.user.id
             });
         }
+
+        // Mark previous notifications about this task as read for the current user when they comment
+        await markNotificationsAsReadForRoute(`/tasks/${taskId}`, false);
 
         revalidatePath(`/tasks/${taskId}`);
         return { success: true, comment };

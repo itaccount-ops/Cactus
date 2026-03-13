@@ -116,16 +116,25 @@ export async function getUnreadNotificationsForRoute(route: string) {
 
 /**
  * Mark all unread notifications whose link starts with a given route as read.
- * Called when the user navigates to that page so the sidebar badge clears.
+ * If 'global' is true, it marks them for ALL users (e.g. when an admin approves an absence, 
+ * all other admins' notifications for that absence should be cleared).
  */
-export async function markNotificationsAsReadForRoute(route: string) {
+export async function markNotificationsAsReadForRoute(route: string, global: boolean = false) {
     const session = await auth();
     if (!session?.user?.id) return;
 
+    const where: any = { isRead: false };
+    
+    // If not global, only for current user
+    if (!global) {
+        where.userId = session.user.id;
+    }
+
     const all = await prisma.notification.findMany({
-        where: { userId: session.user.id, isRead: false },
+        where: where,
         select: { id: true, link: true },
     });
+    
     const ids = all.filter(n => n.link?.startsWith(route)).map(n => n.id);
     if (ids.length === 0) return;
 

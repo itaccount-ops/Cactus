@@ -58,6 +58,7 @@ export interface CreateTimeEntryInput {
     startTime?: string;
     endTime?: string;
     notes?: string;
+    isExtraHours?: boolean;
 }
 
 export async function createTimeEntry(input: CreateTimeEntryInput) {
@@ -106,17 +107,11 @@ export async function createTimeEntry(input: CreateTimeEntryInput) {
         throw new Error(`Las horas totales del día (${existingHours + input.hours}h) exceden el máximo de 24h.`);
     }
 
-    let status: TimeEntryStatus = 'DRAFT';
+    let status: TimeEntryStatus = 'APPROVED';
+    const isExtraHours = input.isExtraHours === true;
 
-    if (existingHours >= maxDailyLimit) {
-        // Extra hours go to pending approval
-        status = 'SUBMITTED';
-    } else if (existingHours + input.hours > maxDailyLimit) {
-        // Intenta mezclar horas normales con horas extra
-        const horasPermitidasNormales = maxDailyLimit - existingHours;
-        const horasExtra = (existingHours + input.hours) - maxDailyLimit;
-        throw new Error(`Solo puedes auto-aprobar hasta ${maxDailyLimit}h diarias. Por favor, registra primero ${horasPermitidasNormales}h para completar tu jornada, y luego registra otra entrada de ${horasExtra}h para tus horas extras, que quedarán pendientes de aprobación.`);
-    }
+    // Todas las entradas se auto-aprueban por requerimiento (auto-aprobación propia habilitada)
+    status = 'APPROVED';
 
     const entry = await prisma.timeEntry.create({
         data: {
@@ -127,8 +122,10 @@ export async function createTimeEntry(input: CreateTimeEntryInput) {
             startTime: input.startTime,
             endTime: input.endTime,
             notes: input.notes,
-            status: status
-        },
+            isExtraHours: isExtraHours,
+            status: status,
+            ...(status === 'APPROVED' ? { approvedAt: new Date(), approvedById: user.id } : {})
+        } as any,
         include: {
             project: {
                 select: { id: true, code: true, name: true }
@@ -137,7 +134,7 @@ export async function createTimeEntry(input: CreateTimeEntryInput) {
     });
 
     // Notify managers if extra hours are submitted
-    if (status === 'SUBMITTED') {
+    if (isExtraHours) {
         const managers = await prisma.user.findMany({
             where: {
                 OR: [
@@ -218,21 +215,15 @@ export async function updateTimeEntry(
                 select: { hours: true }
             });
             const existingHours = existingEntries.reduce((sum, e) => sum + e.hours, 0);
-            const maxDailyLimit = 8;
             const absoluteMaxDaily = 24;
 
             if (existingHours + input.hours > absoluteMaxDaily) {
                 throw new Error(`Las horas totales del día (${existingHours + input.hours}h) exceden el máximo de 24h.`);
             }
-
-            if (existingHours >= maxDailyLimit) {
-                status = 'SUBMITTED';
-            } else if (existingHours + input.hours > maxDailyLimit) {
-                const horasPermitidasNormales = maxDailyLimit - existingHours;
-                const horasExtra = (existingHours + input.hours) - maxDailyLimit;
-                throw new Error(`Al actualizar, la suma excede las ${maxDailyLimit}h diarias. Registra ${horasPermitidasNormales}h en esta y crea otra de ${horasExtra}h.`);
-            } else if (entry.status !== 'APPROVED' && entry.status !== 'REJECTED') {
-                status = 'DRAFT'; // Under limit, was DRAFT/SUBMITTED → stays draft
+            
+            // Si el usuario marca o desmarca Horas Extra, el status se actualiza en el update de abajo
+            if (input.isExtraHours !== undefined) {
+                status = input.isExtraHours ? 'SUBMITTED' : 'APPROVED';
             }
         }
     }
@@ -245,7 +236,9 @@ export async function updateTimeEntry(
             ...(input.endTime !== undefined && { endTime: input.endTime }),
             ...(input.notes !== undefined && { notes: input.notes }),
             ...(input.projectId && { projectId: input.projectId }),
-            status: status
+            ...(input.isExtraHours !== undefined && { isExtraHours: input.isExtraHours }),
+            status: status,
+            ...(status === 'APPROVED' ? { approvedAt: new Date(), approvedById: user.id } : { approvedAt: null, approvedById: null })
         },
         include: {
             project: {
@@ -460,9 +453,11 @@ export async function approveTimeEntries(entryIds: string[]) {
         if (entry.status !== 'SUBMITTED' && entry.status !== 'DRAFT') {
             throw new Error('Solo se pueden aprobar entradas pendientes o en borrador');
         }
+        /* 
         if (entry.userId === user.id) {
             throw new Error('No puedes aprobar tus propias entradas');
         }
+        */
     }
 
     await prisma.timeEntry.updateMany({

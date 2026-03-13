@@ -251,6 +251,7 @@ model TimeEntry {
   startTime       String?
   endTime         String?
   notes           String?
+  isExtraHours    Boolean         @default(false)
   status          TimeEntryStatus @default(DRAFT)
   submittedAt     DateTime?
   approvedAt      DateTime?
@@ -266,6 +267,7 @@ model TimeEntry {
   @@index([projectId])
   @@index([status])
   @@index([userId, status])
+  @@index([isExtraHours])
 }
 
 model Task {

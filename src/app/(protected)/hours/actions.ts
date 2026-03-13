@@ -28,6 +28,7 @@ const TimeEntryCreateSchema = z.object({
     endTime: z.string().optional(),
     notes: z.string().optional(),
     billable: z.boolean().optional(),
+    isExtraHours: z.boolean().optional(),
 });
 
 const TimeEntryUpdateSchema = z.object({
@@ -38,6 +39,7 @@ const TimeEntryUpdateSchema = z.object({
     endTime: z.string().optional(),
     notes: z.string().optional(),
     billable: z.boolean().optional(),
+    isExtraHours: z.boolean().optional(),
 });
 
 export type TimeEntryFilters = {
@@ -202,23 +204,24 @@ export async function createTimeEntry(data: z.infer<typeof TimeEntryCreateSchema
         finalHours = calculateHoursFromTime(validated.startTime, validated.endTime);
     }
 
-    // Comprehensive business validation (now enforces 8h cap)
+    // Comprehensive business validation
     const validation = await validateCreateTimeEntry({
         userId: user.id,
         projectId: validated.projectId,
         date: new Date(validated.date),
         startTime: validated.startTime,
         endTime: validated.endTime,
-        hours: finalHours
+        hours: finalHours,
+        isExtraHours: validated.isExtraHours
     });
 
     if (!validation.valid) {
         throw new Error(validation.errors.join('; '));
     }
 
-    // If overtime, entry must wait for manager approval
-    const isOvertime = validation.isOvertime === true;
-    const entryStatus = isOvertime ? 'SUBMITTED' : 'APPROVED';
+    // Aprobación automática habilitada por requerimiento (incluso para horas extra)
+    const isExtraHours = validated.isExtraHours === true;
+    const entryStatus = 'APPROVED';
 
     // Create entry
     const entry = await prisma.timeEntry.create({
@@ -230,12 +233,14 @@ export async function createTimeEntry(data: z.infer<typeof TimeEntryCreateSchema
             notes: validated.notes || null,
             startTime: validated.startTime || null,
             endTime: validated.endTime || null,
-            status: entryStatus
+            isExtraHours: isExtraHours,
+            status: entryStatus,
+            ...(entryStatus === 'APPROVED' ? { approvedAt: new Date(), approvedById: user.id } : {})
         } as any
     });
 
-    // Notify managers if overtime
-    if (isOvertime) {
+    // Notify managers if extra hours
+    if (isExtraHours) {
         try {
             const fullUser = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true, department: true } });
             const managers = await prisma.user.findMany({
@@ -275,7 +280,7 @@ export async function createTimeEntry(data: z.infer<typeof TimeEntryCreateSchema
     return {
         success: true,
         entry,
-        isOvertime,
+        isOvertime: isExtraHours,
         warnings: validation.warnings
     };
 }
@@ -335,10 +340,13 @@ export async function updateTimeEntry(id: string, data: z.infer<typeof TimeEntry
             ...(validated.date && { date: new Date(validated.date) }),
             hours,
             ...(validated.notes !== undefined && { notes: validated.notes }),
-            // Campos opcionales del schema mejorado (comentados si no existen)
-            // ...(validated.startTime !== undefined && { startTime: validated.startTime }),
-            // ...(validated.endTime !== undefined && { endTime: validated.endTime }),
-            // ...(validated.billable !== undefined && { billable: validated.billable }),
+            ...(validated.isExtraHours !== undefined && { isExtraHours: validated.isExtraHours }),
+            // Si cambian a extra, o de extra a normal, actualizar status
+            // Al ser auto-aprobadas, siempre son APPROVED
+            ...(validated.isExtraHours !== undefined && { 
+                status: 'APPROVED',
+                approvedAt: new Date(), approvedById: user.id
+            })
         } as any
     });
 
@@ -472,10 +480,12 @@ export async function approveTimeEntry(id: string, notes?: string) {
         throw new Error('Solo se pueden aprobar entradas enviadas');
     }
 
-    // Cannot approve own entries
+    // Cannot approve own entries (Deshabilitado por requerimiento del usuario)
+    /*
     if (entry.userId === user.id) {
         throw new Error('No puedes aprobar tus propias entradas');
     }
+    */
 
     const updated = await prisma.timeEntry.update({
         where: { id },

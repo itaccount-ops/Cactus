@@ -224,7 +224,7 @@ export default function Sidebar() {
                                             title={isCollapsed ? item.label : item.desc}
                                         >
                                             {/* Badge right dot specifically for "Notificaciones" when collapsed */}
-                                            {isCollapsed && item.href === '/notifications' && unreadCount > 0 && (
+                                            {isCollapsed && item.href === '/notifications' && false && unreadCount > 0 && (
                                                 <div className="absolute right-2 top-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-neutral-950" />
                                             )}
 
@@ -235,7 +235,7 @@ export default function Sidebar() {
                                             <div className="relative flex items-center justify-center">
                                                 <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-theme-muted'} ${!isCollapsed ? 'mr-3' : ''}`} />
 
-                                                {isNotificationItem && unreadCount > 0 && (
+                                                {isNotificationItem && false && unreadCount > 0 && (
                                                     <span className={`absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full border-2 ${isActive ? 'bg-red-400 border-olive-600' : 'bg-red-500 border-white dark:border-neutral-900'}`}></span>
                                                 )}
                                             </div>
@@ -243,7 +243,7 @@ export default function Sidebar() {
                                             {!isCollapsed && (
                                                 <>
                                                     <span className="flex-1 truncate">{item.label}</span>
-                                                    {isNotificationItem && unreadCount > 0 && (
+                                                    {isNotificationItem && false && unreadCount > 0 && (
                                                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ml-auto ${isActive ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600 dark:bg-red-900/30'}`}>
                                                             {unreadCount}
                                                         </span>

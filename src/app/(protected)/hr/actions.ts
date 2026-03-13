@@ -3,6 +3,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath, unstable_cache } from 'next/cache';
+import { markNotificationsAsReadForRoute } from '@/app/(protected)/notifications/actions';
 import {
     validateAbsenceRequest,
     countWorkingDays,
@@ -498,7 +499,7 @@ export async function requestAbsence(data: {
                 type: 'SYSTEM' as const,
                 title: 'Nueva solicitud de ausencia',
                 message: `${user.name} ha solicitado ${typeLabel} (${result.workingDays} días laborables).`,
-                link: '/hr/absences',
+                link: `/hr/absences?id=${absence.id}`,
                 senderId: user.id,
             }))
         });
@@ -571,10 +572,15 @@ export async function processAbsenceRequest(
             message: action === 'APPROVED'
                 ? `Tu solicitud de ausencia ha sido aprobada por ${currentUser.name}.`
                 : `Tu solicitud de ausencia ha sido rechazada por ${currentUser.name}.${note ? ` Motivo: ${note}` : ''}`,
-            link: '/my-absences',
+            link: `/my-absences?id=${absenceId}`,
             senderId: currentUser.id
         }
     });
+
+    // Clean up notifications for all admins regarding this specific absence
+    await markNotificationsAsReadForRoute(`/hr/absences?id=${absenceId}`, true);
+    // Clean up notifications for the user regarding this specific request (if any)
+    await markNotificationsAsReadForRoute(`/my-absences?id=${absenceId}`, false);
 
     revalidatePath('/hr');
     revalidatePath('/hr/absences');

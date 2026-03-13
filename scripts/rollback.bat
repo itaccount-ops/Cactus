@@ -8,6 +8,8 @@ setlocal EnableDelayedExpansion
 :: ============================================================
 
 set "DROPBOX_DIR=C:\Users\MEP\MEP Projects Dropbox\Apps\CactusMEP\cactus-backups"
+set "LOGFILE=%~dp0rollback.log"
+echo [%TIME%] === ROLLBACK INICIO %DATE% %TIME% === >> "!LOGFILE!"
 
 echo.
 echo ===================================================
@@ -32,7 +34,9 @@ echo.
 
 :: --- Cargar credenciales de produccion desde .env.production ---
 set "ENV_FILE=%~dp0..\.env.production"
+echo [%TIME%] Buscando .env.production en: !ENV_FILE! >> "!LOGFILE!"
 if not exist "!ENV_FILE!" (
+    echo [%TIME%] ERROR: .env.production no encontrado >> "!LOGFILE!"
     echo [ERROR] No se encontro .env.production en: %~dp0..
     echo.
     echo  Crea el archivo .env.production con las credenciales de produccion.
@@ -41,6 +45,7 @@ if not exist "!ENV_FILE!" (
     pause
     exit /b 1
 )
+echo [%TIME%] .env.production encontrado >> "!LOGFILE!"
 
 for /f "usebackq tokens=1,* delims==" %%A in ("!ENV_FILE!") do (
     set "KEY=%%A"
@@ -50,37 +55,31 @@ for /f "usebackq tokens=1,* delims==" %%A in ("!ENV_FILE!") do (
 )
 
 if "!DB_URL!"=="" (
+    echo [%TIME%] ERROR: DB_URL vacia >> "!LOGFILE!"
     echo [ERROR] POSTGRES_URL_NON_POOLING no encontrada en .env.production
     pause
     exit /b 1
 )
+echo [%TIME%] DB_URL OK >> "!LOGFILE!"
 
 :: --- Buscar pg_restore ---
 set "PGRESTORE="
 pg_restore --version >nul 2>&1
 if not errorlevel 1 set "PGRESTORE=pg_restore"
 
-if "!PGRESTORE!"=="" (
-    for %%V in (18 17 16 15 14 13) do (
-        if exist "C:\Program Files\PostgreSQL\%%V\bin\pg_restore.exe" (
-            if "!PGRESTORE!"=="" (
-                set "PGRESTORE=C:\Program Files\PostgreSQL\%%V\bin\pg_restore.exe"
-                echo  PostgreSQL encontrado: C:\Program Files\PostgreSQL\%%V\bin\
-            )
-        )
+for %%V in (18 17 16 15 14 13) do (
+    if "!PGRESTORE!"=="" if exist "C:\Program Files\PostgreSQL\%%V\bin\pg_restore.exe" (
+        set "PGRESTORE=C:\Program Files\PostgreSQL\%%V\bin\pg_restore.exe"
+        echo  PostgreSQL encontrado: C:\Program Files\PostgreSQL\%%V\bin\
     )
 )
-
-if "!PGRESTORE!"=="" (
-    echo [ERROR] pg_restore no encontrado. Instala PostgreSQL desde:
-    echo         https://www.postgresql.org/download/windows/
-    echo         (Solo necesitas marcar "Command Line Tools")
-    pause
-    exit /b 1
-)
+echo [%TIME%] PGRESTORE: !PGRESTORE! >> "!LOGFILE!"
+if "!PGRESTORE!"=="" goto :err_no_pgrestore
 
 :: --- Verificar carpeta de backups ---
+echo [%TIME%] Verificando Dropbox dir: !DROPBOX_DIR! >> "!LOGFILE!"
 if not exist "!DROPBOX_DIR!" (
+    echo [%TIME%] ERROR: carpeta Dropbox no encontrada >> "!LOGFILE!"
     echo [ERROR] No se encontro la carpeta de backups:
     echo         !DROPBOX_DIR!
     echo.
@@ -88,6 +87,7 @@ if not exist "!DROPBOX_DIR!" (
     pause
     exit /b 1
 )
+echo [%TIME%] Dropbox dir OK >> "!LOGFILE!"
 
 :: --- Listar backups disponibles ---
 echo  Backups disponibles en Dropbox:
@@ -290,4 +290,14 @@ echo  Backup restaurado: !SELECTED_NAME!
 echo.
 echo  IMPORTANTE: Reinicia el servidor si es necesario.
 echo.
+echo [%TIME%] === ROLLBACK COMPLETADO === >> "!LOGFILE!"
 pause
+goto :eof
+
+:err_no_pgrestore
+echo [%TIME%] ERROR: pg_restore no encontrado >> "!LOGFILE!"
+echo [ERROR] pg_restore no encontrado. Instala PostgreSQL client desde:
+echo         https://www.postgresql.org/download/windows/
+pause
+exit /b 1
+

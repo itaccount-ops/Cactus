@@ -130,7 +130,21 @@ export default function DailyTimeForm({ projects, selectedDate }: {
                         ></textarea>
                     </div>
 
-                    <div className="md:col-span-12 pt-2">
+                    <div className="md:col-span-12 pt-2 flex items-center justify-between">
+                        <label className="flex items-center space-x-3 cursor-pointer group w-fit">
+                            <div className="relative flex items-center">
+                                <input
+                                    type="checkbox"
+                                    name="isExtraHours"
+                                    className="peer sr-only"
+                                />
+                                <div className="w-10 h-5 bg-neutral-300 dark:bg-neutral-600 rounded-full peer peer-checked:bg-olive-600 transition-colors duration-200"></div>
+                                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform duration-200 peer-checked:translate-x-5 shadow-sm"></div>
+                            </div>
+                            <span className="text-xs font-bold text-neutral-600 dark:text-neutral-400 group-hover:text-olive-600 transition-colors">
+                                Horas Extras (Remuneradas)
+                            </span>
+                        </label>
                         <SubmitButton />
                     </div>
                 </form>
@@ -145,7 +159,7 @@ function SubmitButton() {
         <button
             type="submit"
             disabled={pending}
-            className="w-full md:w-auto px-8 py-3 bg-olive-600 hover:bg-olive-700 text-white font-bold rounded-xl shadow-lg shadow-olive-600/20 transition-all active:scale-[0.98] flex items-center justify-center disabled:opacity-70"
+            className="w-fit px-6 py-2 bg-olive-600 hover:bg-olive-700 text-white font-bold rounded-xl shadow-lg shadow-olive-600/20 transition-all active:scale-[0.98] flex items-center justify-center disabled:opacity-70 text-sm"
         >
             {pending ? (
                 <>

@@ -19,7 +19,8 @@ import {
     List,
     Eye,
     Search,
-    HardHat
+    HardHat,
+    Check
 } from 'lucide-react';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
@@ -66,6 +67,7 @@ interface TimeEntry {
         code: string;
         name: string;
     };
+    isExtraHours?: boolean | null;
     createdAt: Date;
 }
 
@@ -114,6 +116,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
     const [entryMode, setEntryMode] = useState<'total' | 'range'>('total');
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
+    const [isExtraHours, setIsExtraHours] = useState(false);
 
     // Holidays & absences
     const [holidayMap, setHolidayMap] = useState<Record<string, string>>({});
@@ -320,6 +323,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
         setEndTime('17:00');
         setEntryMode('total');
         setNotes('');
+        setIsExtraHours(false);
         setMessage(null);
     };
 
@@ -341,6 +345,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
             setEntryMode('total');
         }
         setNotes(entry.notes || '');
+        setIsExtraHours(entry.isExtraHours === true);
         setMessage(null);
     };
 
@@ -352,6 +357,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
         setEndTime('17:00');
         setEntryMode('total');
         setNotes('');
+        setIsExtraHours(false);
         setMessage(null);
     }
 
@@ -383,9 +389,9 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
             startTime: entryMode === 'range' ? startTime : undefined,
             endTime: entryMode === 'range' ? endTime : undefined,
             userId,
-            // If the total day exceeds 8h, this entry must be APPROVED if it's within the first 8h,
-            // or SUBMITTED if it contributes to or is beyond the daily 8h limit.
-            status: totalDayWithNew > 8 ? 'SUBMITTED' as const : 'APPROVED' as const,
+            isExtraHours,
+            // Todas las entradas se auto-aprueban por requerimiento del usuario
+            status: 'APPROVED' as const,
         };
 
         try {
@@ -405,10 +411,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
             } else {
                 const result = await createTimeEntry({ ...payload, billable: true });
                 if (result.success) {
-                    const msg = (result as any).isOvertime
-                        ? '⏳ Horas extra registradas. Pendientes de aprobación por tu manager.'
-                        : '✅ Horas registradas correctamente';
-                    setMessage({ type: 'success', text: msg });
+                    setMessage({ type: 'success', text: '✅ Horas registradas y aprobadas' });
                     setProjectId('');
                     setHours('');
                     setNotes('');
@@ -442,10 +445,8 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
     };
 
     const getStatusBadge = (entry: TimeEntry, cumulativeBefore: number) => {
-        const totalWithThis = cumulativeBefore + Number(entry.hours);
-        
-        // If it's over 8h total for the day, show its current status (Pending, Approved, Rejected)
-        if (totalWithThis > 8) {
+        // Mostrar estado si es hora extra
+        if (entry.isExtraHours) {
             if (entry.status === 'SUBMITTED') {
                 return <span className="px-2 py-0.5 text-[10px] font-black rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0 shadow-sm">Pendiente</span>;
             }
@@ -480,7 +481,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
     }
 
     return (
-        <div className="flex flex-col gap-2 lg:h-[calc(100dvh-7rem)]">
+        <div className="flex flex-col gap-2 lg:h-[calc(100dvh-7.5rem)]">
             {/* Title row */}
             {!userId && (
                 <div className="flex items-center justify-between shrink-0">
@@ -501,14 +502,14 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
             )}
 
             {/* ── TOP SECTION: Form & Daily List ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 shrink-0 lg:h-[58%] min-h-0 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 shrink-0 lg:h-[60%] min-h-0 overflow-hidden">
                 {/* Form */}
                 {!readOnly && (
                     <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm flex flex-col overflow-hidden h-full">
                         <div className="px-3 py-2 border-b border-neutral-100 dark:border-neutral-800 bg-olive-50/30 dark:bg-olive-900/10 flex items-center justify-between shrink-0">
                             <h3 className="text-sm font-black text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                                <div className="p-1 bg-olive-100 dark:bg-olive-900/30 rounded-md text-olive-600 dark:text-olive-400">
-                                    {editingEntry ? <Pencil className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                                <div className="p-1.5 bg-olive-100 dark:bg-olive-900/30 rounded-md text-olive-600 dark:text-olive-400">
+                                    {editingEntry ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                                 </div>
                                 {editingEntry ? 'Editar Entrada' : 'Entradas'}
                             </h3>
@@ -624,11 +625,25 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                     />
                                 </div>
 
-                                <div className="mt-auto pt-2">
+                                <div className="mt-auto pt-2 flex items-center justify-between">
+                                    <div 
+                                        onClick={() => setIsExtraHours(!isExtraHours)}
+                                        className="flex items-center gap-2 py-1 px-1 cursor-pointer group w-fit hover:opacity-80 transition-opacity"
+                                    >
+                                        <div className="relative flex items-center">
+                                            <div className={`w-8 h-4 rounded-full transition-colors ${isExtraHours ? 'bg-olive-600' : 'bg-neutral-300 dark:bg-neutral-600'}`}></div>
+                                            <div className={`absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${isExtraHours ? 'translate-x-4' : ''}`}></div>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-neutral-600 dark:text-neutral-400 group-hover:text-olive-600 transition-colors flex items-center gap-1">
+                                            Horas Extras (Remuneradas)
+                                            {isExtraHours && <span className="w-1.5 h-1.5 rounded-full bg-olive-500 animate-pulse"></span>}
+                                        </span>
+                                    </div>
+
                                     <button
                                         type="submit"
                                         disabled={submitting}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-olive-600 text-white rounded-lg hover:bg-olive-700 disabled:opacity-50 font-bold shadow-md shadow-olive-600/20 active:scale-[0.98] transition-all text-sm"
+                                        className="inline-flex items-center justify-center gap-2 px-6 py-2 bg-olive-600 text-white rounded-lg hover:bg-olive-700 disabled:opacity-50 font-bold shadow-md shadow-olive-600/20 active:scale-[0.98] transition-all text-sm"
                                     >
                                         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                         {submitting ? 'Guardando...' : (editingEntry ? 'Actualizar Registro' : 'Añadir Registro')}
@@ -646,13 +661,13 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                             <div className="bg-neutral-100 dark:bg-neutral-800 p-1.5 rounded-lg text-neutral-500">
                                 <FileText className="w-3.5 h-3.5" />
                             </div>
-                            <h3 className="text-xs font-black text-neutral-900 dark:text-neutral-100">
+                            <h3 className="text-xs font-black text-neutral-900 dark:text-neutral-100 uppercase tracking-tight">
                                 {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                             </h3>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">Total</span>
-                            <span className="px-2 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-md text-xs font-black border border-neutral-200 dark:border-neutral-700">
+                            <span className="px-2 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-md text-xs font-black border border-neutral-200 dark:border-neutral-700 shadow-sm">
                                 {getHoursForDate(selectedDate)}h
                             </span>
                         </div>
@@ -660,7 +675,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
 
                     <div className="p-3 flex-1 overflow-y-auto">
                         {(entriesByDate[selectedDate] || []).length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-center opacity-50">
+                            <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-10">
                                 <Clock className="w-8 h-8 text-neutral-300 mb-2" />
                                 <p className="text-sm font-bold text-neutral-400">Sin registros para este día</p>
                             </div>
@@ -679,7 +694,7 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                                 </div>
 
                                                 {/* Project code badge - OLIVE */}
-                                                <span className="shrink-0 px-2 py-0.5 bg-olive-500 text-white font-bold text-[10px] rounded-lg shadow-sm shadow-olive-500/20">
+                                                <span className="shrink-0 px-2 py-0.5 bg-olive-500 text-white font-bold text-[10px] rounded-lg shadow-sm uppercase">
                                                     {entry.project.code}
                                                 </span>
 
@@ -697,6 +712,18 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                                 {/* Actions */}
                                                 {!readOnly && (
                                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {entry.status === 'SUBMITTED' && (
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    approveTimeEntries([entry.id]).then(() => loadData());
+                                                                }} 
+                                                                className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all" 
+                                                                title="Aprobar mis horas"
+                                                            >
+                                                                <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                                                            </button>
+                                                        )}
                                                         <button onClick={() => openEditForm(entry)} className="p-1.5 text-neutral-400 hover:text-olive-600 hover:bg-olive-50 dark:hover:bg-olive-900/20 rounded-lg transition-all" title="Editar">
                                                             <Pencil className="w-3.5 h-3.5" />
                                                         </button>
@@ -838,20 +865,20 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="flex-1 p-1.5 overflow-y-auto">
+                                                    <div className="flex-1 p-1 overflow-y-auto">
                                                         {dayEntries.map(entry => (
-                                                            <div key={entry.id} className="text-[10px] p-1.5 mb-1 bg-white dark:bg-neutral-800 border-l-[3px] border-l-olive-500 border border-neutral-100 dark:border-neutral-700 rounded-r-md shadow-sm truncate flex justify-between items-center">
+                                                            <div key={entry.id} className="text-[9px] p-1 mb-1 bg-white dark:bg-neutral-800 border-l-[2px] border-l-olive-500 border border-neutral-100 dark:border-neutral-700 rounded-r-md shadow-sm truncate flex justify-between items-center">
                                                                 <span className="text-olive-700 dark:text-olive-400 font-extrabold truncate pr-1">{entry.project.code}</span>
-                                                                <span className="shrink-0 text-neutral-500 dark:text-neutral-400">{Number(entry.hours)}h</span>
+                                                                <span className="shrink-0 text-neutral-500 dark:text-neutral-400 font-bold">{Number(entry.hours)}h</span>
                                                             </div>
                                                         ))}
                                                         {holidayMap[dateStr] && (
-                                                            <div className="text-[9px] p-1 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-bold rounded flex items-center gap-1 mb-1">
+                                                            <div className="text-[8px] p-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-bold rounded flex items-center gap-1 mb-1">
                                                                 <span>🎉</span> <span className="truncate">{holidayMap[dateStr]}</span>
                                                             </div>
                                                         )}
                                                         {absenceMap[dateStr] && (
-                                                            <div className="text-[9px] p-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold rounded flex items-center gap-1 mb-1">
+                                                            <div className="text-[8px] p-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold rounded flex items-center gap-1 mb-1">
                                                                 <span>🏖️</span> <span className="truncate">{absenceMap[dateStr]}</span>
                                                             </div>
                                                         )}
@@ -936,46 +963,46 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                     <>
                                         {/* Summary Cards */}
                                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 shadow-sm">
-                                                <div className="flex items-center gap-1.5 text-neutral-500 text-xs font-medium mb-1.5">
-                                                    <div className="p-1 bg-olive-100 dark:bg-olive-900/30 text-olive-600 dark:text-olive-400 rounded-md"><Clock size={12} /></div>
+                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-2 shadow-sm">
+                                                <div className="flex items-center gap-1.5 text-neutral-500 text-[10px] font-medium mb-1">
+                                                    <div className="p-0.5 bg-olive-100 dark:bg-olive-900/30 text-olive-600 dark:text-olive-400 rounded-md"><Clock size={12} /></div>
                                                     Horas Reales
                                                 </div>
-                                                <div className="text-2xl font-black text-olive-600 dark:text-olive-500">{formatHoras(resumenDatos.horasReales)}</div>
+                                                <div className="text-xl font-black text-olive-600 dark:text-olive-500">{formatHoras(resumenDatos.horasReales)}</div>
                                             </div>
-                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 shadow-sm">
-                                                <div className="flex items-center gap-1.5 text-neutral-500 text-xs font-medium mb-1.5">
-                                                    <div className="p-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 rounded-md"><CalendarIcon size={12} /></div>
+                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-2 shadow-sm">
+                                                <div className="flex items-center gap-1.5 text-neutral-500 text-[10px] font-medium mb-1">
+                                                    <div className="p-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 rounded-md"><CalendarIcon size={12} /></div>
                                                     Previstas
                                                 </div>
-                                                <div className="text-2xl font-bold text-neutral-700 dark:text-neutral-200">{formatHoras(resumenDatos.horasPrevistas)}</div>
+                                                <div className="text-xl font-bold text-neutral-700 dark:text-neutral-200">{formatHoras(resumenDatos.horasPrevistas)}</div>
                                             </div>
-                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 shadow-sm">
-                                                <div className="flex items-center gap-1.5 text-neutral-500 text-xs font-medium mb-1.5">
-                                                    <div className={`p-1 rounded-md ${resumenDatos.diferencia >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-2 shadow-sm">
+                                                <div className="flex items-center gap-1.5 text-neutral-500 text-[10px] font-medium mb-1">
+                                                    <div className={`p-0.5 rounded-md ${resumenDatos.diferencia >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                                         {resumenDatos.diferencia >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                                                     </div>
                                                     Diferencia
                                                 </div>
-                                                <div className={`text-2xl font-bold ${getColorDiferencia(resumenDatos.diferencia)}`}>{formatDiferencia(resumenDatos.diferencia)}</div>
+                                                <div className={`text-xl font-bold ${getColorDiferencia(resumenDatos.diferencia)}`}>{formatDiferencia(resumenDatos.diferencia)}</div>
                                             </div>
-                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 shadow-sm">
-                                                <div className="flex items-center gap-1.5 text-neutral-500 text-xs font-medium mb-1.5">
-                                                    <div className="p-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-md"><AlertTriangle size={12} /></div>
+                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-2 shadow-sm">
+                                                <div className="flex items-center gap-1.5 text-neutral-500 text-[10px] font-medium mb-1">
+                                                    <div className="p-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-md"><AlertTriangle size={12} /></div>
                                                     Sin Imputar
                                                 </div>
-                                                <div className={`text-2xl font-bold ${getColorDiasSinImputar(resumenDatos.diasSinImputar).text}`}>
-                                                    {resumenDatos.diasSinImputar} <span className="text-sm font-normal text-neutral-400">días</span>
+                                                <div className={`text-xl font-bold ${getColorDiasSinImputar(resumenDatos.diasSinImputar).text}`}>
+                                                    {resumenDatos.diasSinImputar} <span className="text-[10px] font-normal text-neutral-400">días</span>
                                                 </div>
                                             </div>
-                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 shadow-sm">
-                                                <div className="flex items-center gap-1.5 text-neutral-500 text-xs font-medium mb-1.5">
-                                                    <div className={`p-1 rounded-md ${resumenDatos.porcentajeCumplimiento >= 100 ? 'bg-green-100 text-green-600' : resumenDatos.porcentajeCumplimiento >= 80 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
+                                            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-2 shadow-sm">
+                                                <div className="flex items-center gap-1.5 text-neutral-500 text-[10px] font-medium mb-1">
+                                                    <div className={`p-0.5 rounded-md ${resumenDatos.porcentajeCumplimiento >= 100 ? 'bg-green-100 text-green-600' : resumenDatos.porcentajeCumplimiento >= 80 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
                                                         <TrendingUp size={12} />
                                                     </div>
                                                     Cumplimiento
                                                 </div>
-                                                <div className={`text-2xl font-bold ${resumenDatos.porcentajeCumplimiento >= 100 ? 'text-green-600' : resumenDatos.porcentajeCumplimiento >= 80 ? 'text-amber-600' : 'text-red-600'}`}>
+                                                <div className={`text-xl font-bold ${resumenDatos.porcentajeCumplimiento >= 100 ? 'text-green-600' : resumenDatos.porcentajeCumplimiento >= 80 ? 'text-amber-600' : 'text-red-600'}`}>
                                                     {resumenDatos.porcentajeCumplimiento}%
                                                 </div>
                                             </div>
@@ -983,9 +1010,9 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
 
                                         {/* Detalle Diario */}
                                         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm">
-                                            <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-50/50 dark:bg-neutral-800/20">
-                                                <h3 className="font-bold text-base text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                                                    <CalendarIcon className="w-4 h-4 text-olive-600" />
+                                            <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-neutral-50/50 dark:bg-neutral-800/20">
+                                                <h3 className="font-bold text-sm text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                                                    <CalendarIcon className="w-3.5 h-3.5 text-olive-600" />
                                                     Detalle Diario
                                                 </h3>
                                                 <div className="relative w-full sm:w-auto">
@@ -1005,11 +1032,11 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                                 </div>
                                             </div>
 
-                                            <div className="hidden md:grid grid-cols-10 bg-neutral-100/50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                                                <div className="col-span-1 px-4 py-2.5 text-center">Día</div>
-                                                <div className="col-span-1 px-4 py-2.5 text-center">Semana</div>
-                                                <div className="col-span-6 px-4 py-2.5">Proyectos</div>
-                                                <div className="col-span-2 px-4 py-2.5 text-center">Total</div>
+                                            <div className="hidden md:grid grid-cols-10 bg-neutral-100/50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 text-[10px] font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                                                <div className="col-span-1 px-3 py-2 text-center">Día</div>
+                                                <div className="col-span-1 px-3 py-2 text-center">Semana</div>
+                                                <div className="col-span-6 px-3 py-2">Proyectos</div>
+                                                <div className="col-span-2 px-3 py-2 text-center">Total</div>
                                             </div>
 
                                             <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -1031,40 +1058,40 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                                                 </div>
                                                                 <div className="font-bold">{dia.totalHoras > 0 ? formatHoras(dia.totalHoras) : '-'}</div>
                                                             </div>
-                                                            <div className="hidden md:block col-span-1 px-4 py-3 text-center">
-                                                                <div className={`w-7 h-7 mx-auto flex items-center justify-center rounded-full font-bold text-xs ${dia.estado === 'vacio' && dia.esLaborable ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-neutral-700 dark:text-neutral-300'}`}>
+                                                            <div className="hidden md:block col-span-1 px-3 py-2 text-center">
+                                                                <div className={`w-6 h-6 mx-auto flex items-center justify-center rounded-full font-bold text-[10px] ${dia.estado === 'vacio' && dia.esLaborable ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-neutral-700 dark:text-neutral-300'}`}>
                                                                     {dia.dia}
                                                                 </div>
                                                             </div>
-                                                            <div className="hidden md:block col-span-1 px-4 py-3 text-center text-xs font-medium text-neutral-500">
+                                                            <div className="hidden md:block col-span-1 px-3 py-2 text-center text-[10px] font-medium text-neutral-500">
                                                                 {dia.diaSemanaLabel.slice(0, 3)}
                                                             </div>
-                                                            <div className="col-span-12 md:col-span-6 px-4 py-2.5">
-                                                                <div className="flex flex-wrap gap-1.5">
+                                                            <div className="col-span-12 md:col-span-6 px-3 py-2">
+                                                                <div className="flex flex-wrap gap-1">
                                                                     {dia.horasPorProyecto.length > 0 ? (
                                                                         dia.horasPorProyecto.map((p, idx) => (
-                                                                            <div key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-olive-50 dark:bg-olive-900/20 border border-olive-100 dark:border-olive-900/30 text-xs font-semibold text-olive-700 dark:text-olive-300">
+                                                                            <div key={idx} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-olive-50 dark:bg-olive-900/20 border border-olive-100 dark:border-olive-900/30 text-[10px] font-semibold text-olive-700 dark:text-olive-300">
                                                                                 <span className="opacity-70">{p.projectCode}:</span>
                                                                                 <span>{p.hours}h</span>
                                                                             </div>
                                                                         ))
                                                                     ) : (
-                                                                        <span className="text-xs text-neutral-400 italic">
+                                                                        <span className="text-[10px] text-neutral-400 italic">
                                                                             {dia.esAusencia
-                                                                                ? <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-md font-semibold not-italic">🏖️ {ABSENCE_TYPE_LABELS[dia.tipoAusencia || ''] || 'Ausencia'}</span>
+                                                                                ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-md font-semibold not-italic">🏖️ {ABSENCE_TYPE_LABELS[dia.tipoAusencia || ''] || 'Ausencia'}</span>
                                                                                 : dia.esFestivo
-                                                                                    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-md font-semibold not-italic">🎉 {dia.nombreFestivo || 'Festivo'}</span>
+                                                                                    ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-md font-semibold not-italic">🎉 {dia.nombreFestivo || 'Festivo'}</span>
                                                                                     : !dia.esLaborable ? 'No laborable' : 'Sin actividad'
                                                                             }
                                                                         </span>
                                                                     )}
                                                                 </div>
                                                                 {dia.notas.length > 0 && (
-                                                                    <p className="text-xs text-neutral-500 mt-0.5 line-clamp-1">{dia.notas.join('. ')}</p>
+                                                                    <p className="text-[10px] text-neutral-500 mt-0.5 line-clamp-1">{dia.notas.join('. ')}</p>
                                                                 )}
                                                             </div>
-                                                            <div className="hidden md:block col-span-2 px-4 py-3 text-center">
-                                                                <span className={`font-bold ${dia.totalHoras >= 8 ? 'text-green-600 dark:text-green-400' : dia.totalHoras > 0 ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-300 dark:text-neutral-700'}`}>
+                                                            <div className="hidden md:block col-span-2 px-3 py-2 text-center">
+                                                                <span className={`font-bold text-xs ${dia.totalHoras >= 8 ? 'text-green-600 dark:text-green-400' : dia.totalHoras > 0 ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-300 dark:text-neutral-700'}`}>
                                                                     {dia.totalHoras > 0 ? formatHoras(dia.totalHoras) : '—'}
                                                                 </span>
                                                             </div>
@@ -1074,24 +1101,24 @@ export default function DailyHoursView({ userId, readOnly = false }: DailyHoursV
                                         </div>
 
                                         {/* Distribución por Proyecto */}
-                                        <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-4 shadow-sm">
-                                            <h3 className="font-bold text-base mb-4 flex items-center gap-2">
-                                                <HardHat className="w-4 h-4 text-neutral-500" />
+                                        <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-3 shadow-sm">
+                                            <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
+                                                <HardHat className="w-3.5 h-3.5 text-neutral-500" />
                                                 Distribución por Proyecto
                                             </h3>
-                                            <div className="space-y-3">
+                                            <div className="space-y-2.5">
                                                 {resumenDatos.totalesPorProyecto.map((proyecto) => {
                                                     const percentage = Math.min(100, Math.round((proyecto.hours / resumenDatos.horasReales) * 100));
                                                     return (
                                                         <div key={proyecto.projectId}>
-                                                            <div className="flex items-center justify-between mb-1">
+                                                            <div className="flex items-center justify-between mb-0.5">
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="font-bold text-sm bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-neutral-900 dark:text-neutral-100">{proyecto.projectCode}</span>
-                                                                    <span className="text-sm text-neutral-500 truncate max-w-[200px]">{proyecto.projectName}</span>
+                                                                    <span className="font-bold text-[10px] bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-neutral-900 dark:text-neutral-100">{proyecto.projectCode}</span>
+                                                                    <span className="text-[10px] text-neutral-500 truncate max-w-[150px]">{proyecto.projectName}</span>
                                                                 </div>
                                                                 <div className="text-right">
-                                                                    <span className="font-bold text-sm text-neutral-900 dark:text-neutral-100">{formatHoras(proyecto.hours)}</span>
-                                                                    <span className="text-xs text-neutral-400 ml-1">({percentage}%)</span>
+                                                                    <span className="font-bold text-[10px] text-neutral-900 dark:text-neutral-100">{formatHoras(proyecto.hours)}</span>
+                                                                    <span className="text-[9px] text-neutral-400 ml-1">({percentage}%)</span>
                                                                 </div>
                                                             </div>
                                                             <div className="w-full h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
