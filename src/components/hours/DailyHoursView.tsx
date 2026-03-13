@@ -28,6 +28,7 @@ import {
     createTimeEntry,
     updateTimeEntry,
     deleteTimeEntry,
+    approveTimeEntries,
     getActiveProjects,
     getHolidaysAndAbsences,
 } from '@/app/(protected)/hours/actions';

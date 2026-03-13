@@ -598,6 +598,11 @@ export async function bulkApproveTimeEntries(ids: string[], notes?: string) {
 }
 
 /**
+ * Alias de aprobación múltiple para compatibilidad con la UI
+ */
+export const approveTimeEntries = bulkApproveTimeEntries;
+
+/**
  * Bulk submit time entries for approval
  */
 export async function bulkSubmitTimeEntries(ids: string[]) {
